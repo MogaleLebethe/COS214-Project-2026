@@ -1,51 +1,48 @@
 #include "Director.h"
 #include "ComponentBuilder.h"
-#include "TaskBuilder.h"
-#include "ProjectBuilder.h"
+#include "Task.h"
+#include "Project.h"
+#include "WorkflowComponent.h"
 #include <stdexcept>
 
-Director::Director() : builder_(nullptr) {
-    
-}
+Director::Director() {}
 
-void Director::setBuilder(ComponentBuilder*builder) {
-    builder_=builder;
-}
-
-Task* Director::buildStandardTask(ComponentBuilder* builder, const std::string&name, const std::string&description) {
-    if (builder ==nullptr) {
-        throw std::invalid_argument("builder must not be null!");
+void Director::registerBuilder(const std::string&type, ComponentBuilder*builder) {
+    if (builder==nullptr) {
+        throw std::invalid_argument("Director::registerBuilder: builder must not be null");
     }
+    builders_[type] = builder;
+}
 
+WorkflowComponent* Director::runStandardRecipe(const std::string&type, const std::string&name, const std::string&description) {
+    std::map<std::string, ComponentBuilder*>::iterator found=builders_.find(type);
+    if (found==builders_.end() ||found->second == nullptr) {
+        throw std::logic_error("Director:no builder registered for \"" + type + "\"");
+    }
+    ComponentBuilder*builder =found->second;
     builder->reset();
-    builder->setBasicInfo("",name);
+    builder->setBasicInfo("", name);
     builder->setDescription(description);
-
-    TaskBuilder* taskBuilder = dynamic_cast<TaskBuilder*>(builder);
-    if (taskBuilder == nullptr) {
-        throw std::logic_error("Director::buildStandardTask requires a TaskBuilder");
-    }
-
-    return taskBuilder->getResult();
+    return builder->build();
 }
 
-Task* Director::createTask() {
-    return buildStandardTask(builder_,"New Task","");
+Task* Director::createNewTask(const std::string& name,const std::string&description) {
+    WorkflowComponent*result=runStandardRecipe("Task", name,description);
+    Task* task = dynamic_cast<Task*>(result);
+    if (task==nullptr) {
+        throw std::logic_error("Director::createNewTask: builder registered under \"Task\" did not produce a Task");
+    }
+
+    return task;
 }
 
-Project* Director::createProject() {
-    if (builder_==nullptr) {
-        throw std::invalid_argument("Director::createProject:no builder has been set");
+Project* Director::createNewProject(const std::string& name, const std::string&description) {
+    WorkflowComponent* result = runStandardRecipe("Project", name,description);
+    Project* project = dynamic_cast<Project*>(result);
+    if (project==nullptr) {
+        throw std::logic_error("Director::createNewProject: builder registered under \"Project\" did not produce a Project");
     }
 
-    builder_->reset();
-    builder_->setBasicInfo("", "New Project");
-    builder_->setDescription("");
-
-    // The get declared on the concrete builders, not on ComponentBuilder,so downcast to confirm ProjectBuilder before using it.
-    ProjectBuilder* projectBuilder = dynamic_cast<ProjectBuilder*>(builder_);
-    if (projectBuilder ==nullptr) {
-        throw std::logic_error("Director::createProject requires a ProjectBuilder");
-    }
-    return projectBuilder->getResult();
+    
+    return project;
 }

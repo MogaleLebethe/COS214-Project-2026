@@ -1,4 +1,3 @@
 #include "ComponentBuilder.h"
-ComponentBuilder::~ComponentBuilder(){
-    
-}
+
+ComponentBuilder::~ComponentBuilder() {}

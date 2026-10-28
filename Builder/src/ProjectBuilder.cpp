@@ -1,55 +1,72 @@
-include "ProjectBuilder.h"
+#include "ProjectBuilder.h"
 #include "Project.h"
-#include "Task.h"
 #include "WorkflowComponent.h"
+#include "Participant.h"
+#include "DateTime.h"
+#include "WorkflowError.h"
 
-ProjectBuilder::ProjectBuilder() : product_(new Project()) {
-
+ProjectBuilder::ProjectBuilder() : product(nullptr) {
+    reset();
 }
 
 ProjectBuilder::~ProjectBuilder() {
-    delete product_;
+    delete product;
 }
 
 void ProjectBuilder::reset() {
-    delete product_;
-    product_ =new Project();
+    delete product;
+    product = nullptr;
+    product = new Project();
 }
 
 void ProjectBuilder::setBasicInfo(const std::string&id, const std::string&name) {
     if (!id.empty()) {
-        product_->id_=id;
+        product->id_=id;
     }
-    product_->name_=name;
+    product->name_=name;
 }
 
 void ProjectBuilder::setDescription(const std::string&description) {
-    product_->description_=description;
+    product->description_=description;
 }
 
-void ProjectBuilder::setExecutor(Participant*executor) {
-    product_->executor_=executor;
+void ProjectBuilder::setExecutor(const Participant&executor) {
+    product->executor_= executor;
 }
 
-void ProjectBuilder::setDeadline(DateTime * deadline) {
-    product_->deadline_ =deadline;
+void ProjectBuilder::setDeadline(const DateTime&deadline) {
+    product->deadline_= deadline;
 }
 
 void ProjectBuilder::addDependency(WorkflowComponent*component) {
-    product_->addDependency(component);
+    product->addDependency(component);
 }
 
-void ProjectBuilder::setCustomField(const std::string&key,const std::string&value) {
-    product_->setCustomField(key,value);
+void ProjectBuilder::addCustomField(const std::string&key, const std::string& value) {
+    product->setCustomField(key,value);
 }
 
-void ProjectBuilder::addWorkItem(Task* task) {
-    product_->addWorkItem(task);
+void ProjectBuilder::addWorkItem(WorkflowComponent*item) {
+    product->addWorkItem(item);
+}
+
+void ProjectBuilder::validate() const {
+    if (product->getName().empty()) {
+        throw WorkflowError("ProjectBuilder::validate: name is mandatory");
+    }
+    if (product->getId().empty()) {
+        throw WorkflowError("ProjectBuilder::validate: id is mandatory");
+    }
 }
 
 Project* ProjectBuilder::getResult() {
-    Project* result = product_;
-    product_ = nullptr;
+    validate();
+    Project* finished=product;
+    product = nullptr;
     reset();
-    return result;
+    return finished;
+}
+
+WorkflowComponent* ProjectBuilder::build() {
+    return getResult();
 }
