@@ -26,6 +26,29 @@ ActionRegistry::ActionRegistry()
     });
 }
 
+ActionRegistry::ActionRegistry()
+{
+    registerAction("start", [](Task* task, const nlohmann::json& args) -> Command* {
+        return new TaskStateCommand(task, [](Task& t) { t.start(); }, "Start Task");
+    });
+
+    registerAction("complete", [](Task* task, const nlohmann::json& args) -> Command* {
+        return new TaskStateCommand(task, [](Task& t) { t.complete(); }, "Complete Task");
+    });
+
+    registerAction("block", [](Task* task, const nlohmann::json& args) -> Command* {
+        return new TaskStateCommand(task, [](Task& t) { t.block(); }, "Block Task");
+    });   
+
+    registerAction("fail", [](Task* task, const nlohmann::json& args) -> Command* {
+        return new TaskStateCommand(task, [](Task& t) { t.fail(); }, "Fail Task");
+    });
+
+    registerAction("cancel", [](Task* task, const nlohmann::json& args) -> Command* {
+        return new TaskStateCommand(task, [](Task& t) { t.cancel(); }, "Cancel Task");
+    });
+}
+
 void ActionRegistry::registerAction(const std::string& name, ActionCreator creator)
 {
     if (!creator)

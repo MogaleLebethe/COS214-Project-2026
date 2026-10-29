@@ -40,7 +40,7 @@ public:
      * @param name The string identifier for the action (e.g., "approve").
      * @param creator The `ActionCreator` factory function or lambda.
      */
-    void registerAction(std::string name, ActionCreator creator);
+    void registerAction(const std::string& name, ActionCreator creator);
 
     /**
      * @brief Instantiates a command object by looking up its action creator name.
