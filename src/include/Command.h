@@ -1,6 +1,8 @@
 #ifndef TIVIDY_COMMAND_H
 #define TIVIDY_COMMAND_H
 
+#include <functional>
+#include <map>
 #include <string>
 #include <map>
 #include <functional>
