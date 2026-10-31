@@ -8,6 +8,7 @@
 #include "Project.h"
 #include "Task.h"
 #include "TaskState.h"
+#include "TaskMemento.h"
 #include "WorkflowComponent.h"
 #include "WorkflowError.h"
 
@@ -21,8 +22,8 @@ TaskStateCommand::TaskStateCommand(Task* task, std::function<void(Task&)> transi
     : task(task), transition(transition), label(label), previousState(nullptr) {}
 
 void TaskStateCommand::execute() {
-    previousState = task->getState();
-    transition(*task);
+    previousState = task->getState();   // flyweight: borrowed, always valid
+    transition(*task);                  // the State pattern decides whether this is legal
 }
 
 void TaskStateCommand::undo() {
@@ -34,6 +35,7 @@ std::string TaskStateCommand::describe() const {
 }
 
 // AddWorkItemCommand
+// Ownership of `child`: this command while !applied, the parent Project while applied.
 
 AddWorkItemCommand::AddWorkItemCommand(Project* parent, WorkflowComponent* child)
     : parent(parent), child(child), applied(false) {}
@@ -43,12 +45,12 @@ AddWorkItemCommand::~AddWorkItemCommand() {
 }
 
 void AddWorkItemCommand::execute() {
-    parent->addWorkItem(child);
+    parent->addWorkItem(child);   // throws => child stays ours
     applied = true;
 }
 
 void AddWorkItemCommand::undo() {
-    parent->removeWorkItem(child);
+    parent->removeWorkItem(child);   // ownership returns to this command
     applied = false;
 }
 
@@ -73,16 +75,23 @@ std::string AddDependencyCommand::describe() const {
     return "Add dependency " + dependent->getId() + " -> " + prerequisite->getId();
 }
 
-// EditTaskInfoCommand
+// EditTaskInfoCommand (Memento caretaker: OWNS oldMemento and currentMemento)
 
 EditTaskInfoCommand::EditTaskInfoCommand(Task* task, const nlohmann::json& payload)
-    : task(task), payload(payload), hasSnapshots(false) {}
+    : task(task), payload(payload), oldMemento(nullptr), currentMemento(nullptr), hasSnapshots(false) {}
+
+EditTaskInfoCommand::~EditTaskInfoCommand() {
+    delete oldMemento;
+    delete currentMemento;
+}
 
 void EditTaskInfoCommand::execute() {
-    if (hasSnapshots) {
+    if (hasSnapshots) {                          // redo: restore the post-edit snapshot
         task->restoreMemento(currentMemento);
         return;
     }
+    delete oldMemento;                           // a previous failed attempt may have left one
+    oldMemento = nullptr;
     oldMemento = task->createMemento();
     try {
         applyPayload();
@@ -98,6 +107,7 @@ void EditTaskInfoCommand::execute() {
 }
 
 void EditTaskInfoCommand::undo() {
+    if (oldMemento == nullptr) throw WorkflowError("EditTaskInfoCommand::undo: nothing to undo");
     task->restoreMemento(oldMemento);
 }
 
