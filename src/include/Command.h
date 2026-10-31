@@ -8,6 +8,7 @@
 #include <map>
 #include <string>
 
+#include "Support.h"
 #include "TaskMemento.h"
 #include "nlohmann/json.hpp"
 
@@ -245,18 +246,17 @@ public:
  *
  * Asks the task's `RoutingStrategy` for a branch, skips the targets of every branch not
  * chosen, then completes the decision task so the chosen targets become ready.
- * A rejected decision changes nothing.
+ * A rejected decision changes nothing. A decision is final: to change it, undo it first.
  */
 class DecideCommand : public Command {
 private:
     DecisionTask* task;                         ///< Decision task. BORROWED.
     nlohmann::json context;                     ///< Data passed to the routing strategy.
-    std::string previousSelection;              ///< Selected branch before execute().
     std::string chosen;                         ///< Branch chosen by the last successful execute().
     std::map<Task*, TaskState*> previousStates; ///< States before execute(). BORROWED keys and flyweights.
 
     /**
-     * @brief Restores every recorded state and the previous selection.
+     * @brief Restores every recorded state and clears the selection.
      */
     void restore();
 
@@ -273,12 +273,12 @@ public:
      * @brief Decides, skips the other branches and completes the decision task.
      *
      * @throws `NotFoundError` If the router is missing or returns an unknown branch label.
-     * @throws `InvalidTransitionError` If the decision task has not been started.
+     * @throws `InvalidTransitionError` If the decision task has not been started or a decision was already made.
      */
     void execute() override;
 
     /**
-     * @brief Restores every task's previous state and the previous selection.
+     * @brief Restores every task's previous state and clears the selection.
      */
     void undo() override;
 
