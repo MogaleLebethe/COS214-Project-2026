@@ -5,11 +5,11 @@ TaskMemento::TaskMemento(){
 }
 
 TaskMemento::TaskMemento(const Task& task){
-    this->name = task.name_;
-    this->description = task.description_;
-    this->executorId = task.executorId_;
-    this->deadline = task.deadline_;
-    this->customFields = task.customFields_;
+    this->name = task.name;
+    this->description = task.description;
+    this->executorId = task.executorId;
+    this->deadline = task.deadline;
+    this->customFields = task.customFields;
 }
 
 // helper
