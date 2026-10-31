@@ -53,6 +53,4 @@ class TaskMemento {
     friend class Task; 
 };
 
-
-
 #endif
