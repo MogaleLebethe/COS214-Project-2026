@@ -398,14 +398,14 @@ public:
      * 
      * @throws `WorkflowError` If the undo stack is empty.
      */
-    void undo();
+    std::string undo();
 
     /**
      * @brief Re-executes the most recent command on the redo stack and moves it back to the undo stack.
      * 
      * @throws `WorkflowError` If the redo stack is empty.
      */
-    void redo();
+    std::string redo();
 
     /**
      * @brief Checks whether an undo operation can be performed.
@@ -432,8 +432,8 @@ public:
  */
 class ProjectSession {
 private:
-    std::string sessionId;          ///< Unique identifier for the session.
-    Project* activeProject;         ///< Non-owning raw pointer to the loaded project instance.
+    std::string sessionId;           ///< Unique identifier for the session.
+    Project* activeProject;          ///< Raw pointer to the loaded project instance (owned by session).
     CommandHistory* commandHistory; ///< Raw pointer to the command history manager for undo/redo.
     AuditLog* auditLog;             ///< Raw pointer to the session audit log tracker.
 
@@ -447,7 +447,7 @@ public:
     ProjectSession(const std::string& sessionId, Project* project);
 
     /**
-     * @brief Destroys the project session and cleans up owned history and audit resources.
+     * @brief Destroys the project session and cleans up owned project, history, and audit resources.
      */
     virtual ~ProjectSession();
 
@@ -485,6 +485,16 @@ public:
      * @param command Raw pointer to the `Command` to execute.
      */
     void executeCommand(Command* command);
+
+    /**
+     * @brief Undoes the last executed command.
+     */
+    void undo();
+
+    /**
+     * @brief Redoes the last undone command.
+     */
+    void redo();
 };
 
 #endif // TIVIDY_SUPPORT_H

@@ -65,8 +65,8 @@ DateTime Comment::getTimestamp() const { return timestamp; }
 
 // ==================== WorkflowDefinition ====================
 
-WorkflowDefinition::WorkflowDefinition(const std::string& id, const std::string& name, 
-                                     const std::string& industry, const std::string& description, 
+WorkflowDefinition::WorkflowDefinition(const std::string& id, const std::string& name,
+                                     const std::string& industry, const std::string& description,
                                      const nlohmann::json& templateJson)
     : id(id), name(name), industry(industry), description(description), templateJson(templateJson) {}
 
@@ -140,39 +140,39 @@ CommandHistory::~CommandHistory() {
 
 void CommandHistory::executeCommand(Command* command) {
     if (!command) return;
-    
-    command->execute();
+
+    command->execute();             // may throw: the caller keeps ownership
     undoStack.push_back(command);
 
-    // Clear redo stack on new command execution
+    // A new action invalidates redo.
     for (Command* cmd : redoStack) {
         delete cmd;
     }
     redoStack.clear();
 }
 
-void CommandHistory::undo() {
+std::string CommandHistory::undo() {
     if (!canUndo()) {
         throw WorkflowError("Command history undo stack is empty.");
     }
 
     Command* command = undoStack.back();
+    command->undo();                // if this throws, command stays on the undo stack
     undoStack.pop_back();
-
-    command->undo();
     redoStack.push_back(command);
+    return command->describe();
 }
 
-void CommandHistory::redo() {
+std::string CommandHistory::redo() {
     if (!canRedo()) {
         throw WorkflowError("Command history redo stack is empty.");
     }
 
     Command* command = redoStack.back();
+    command->execute();             // if this throws, command stays on the redo stack
     redoStack.pop_back();
-
-    command->execute();
     undoStack.push_back(command);
+    return command->describe();
 }
 
 bool CommandHistory::canUndo() const {
@@ -196,16 +196,32 @@ void CommandHistory::clear() {
 }
 
 // ==================== ProjectSession ====================
+namespace {
 
-ProjectSession::ProjectSession(const std::string& sessionId, Project* project)
-    : sessionId(sessionId), activeProject(project) {
-    commandHistory = new CommandHistory();
-    auditLog = new AuditLog();
+void audit(AuditLog* log, const std::string& sessionId, const std::string& type, const std::string& details) {
+    if (log == nullptr) return;
+    log->record(new AuditEntry(DateTime::now().toString("yyyy-mm-dd HH:MM"), sessionId, type, details));
 }
 
+}
+
+ProjectSession::ProjectSession(const std::string& sessionId, Project* project)
+    : sessionId(sessionId), activeProject(project), commandHistory(nullptr), auditLog(nullptr) {
+    try {
+        commandHistory = new CommandHistory();
+        auditLog = new AuditLog();
+    } catch (...) {
+        delete commandHistory;
+        delete auditLog;
+        throw;       // the Project is still owned by the caller if construction fails
+    }
+}
+
+// FIX (major leak): activeProject was never deleted, so every project tree leaked.
 ProjectSession::~ProjectSession() {
-    delete commandHistory;
+    delete commandHistory;   // commands first: their destructors never touch the project
     delete auditLog;
+    delete activeProject;    // frees the whole task tree
 }
 
 std::string ProjectSession::getSessionId() const {
@@ -224,17 +240,31 @@ AuditLog* ProjectSession::getAuditLog() const {
     return auditLog;
 }
 
+// TAKES ownership of command the moment it is called (deleted here when it is rejected).
+// FIX: also audits REJECTED, so callers no longer need their own try/catch + delete.
 void ProjectSession::executeCommand(Command* command) {
     if (!command) return;
 
-    commandHistory->executeCommand(command);
-
-    if (auditLog) {
-        auditLog->record(new AuditEntry(
-            DateTime::now().toString("yyyy-mm-dd HH:MM"), 
-            sessionId, 
-            "ExecuteCommand", 
-            command->describe()
-        ));
+    std::string before = command->describe();
+    try {
+        commandHistory->executeCommand(command);
+    } catch (const WorkflowError& e) {
+        audit(auditLog, sessionId, "RejectedCommand", before + ": " + e.what());
+        delete command;
+        throw;
+    } catch (...) {
+        delete command;
+        throw;
     }
+    audit(auditLog, sessionId, "ExecuteCommand", command->describe());   // history owns it now
+}
+
+void ProjectSession::undo() {
+    std::string what = commandHistory->undo();
+    audit(auditLog, sessionId, "UndoCommand", what);
+}
+
+void ProjectSession::redo() {
+    std::string what = commandHistory->redo();
+    audit(auditLog, sessionId, "RedoCommand", what);
 }
