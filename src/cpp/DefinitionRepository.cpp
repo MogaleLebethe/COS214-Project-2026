@@ -4,7 +4,8 @@
 
 void DefinitionRepository::add(const WorkflowDefinition &def)
 {
-    definitions[def.getId()] = def;
+    definitions.erase(def.getId());
+    definitions.insert(std::make_pair(def.getId(), def));
 }
 
 const WorkflowDefinition &DefinitionRepository::find(const std::string &id) const
@@ -20,7 +21,7 @@ std::vector<WorkflowDefinition> DefinitionRepository::list() const
     std::vector<WorkflowDefinition> list;
     list.reserve(definitions.size());
 
-    for (const auto& item : definitions) 
+    for (const auto& item : definitions)
     {
         list.push_back(item.second);
     }
