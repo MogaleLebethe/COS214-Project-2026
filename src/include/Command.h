@@ -1,9 +1,10 @@
 #ifndef TIVIDY_COMMAND_H
 #define TIVIDY_COMMAND_H
 
-#include <functional>
-#include <map>
 #include <string>
+#include <map>
+#include <vector>
+#include <functional>
 #include <nlohmann/json.hpp>
 
 // Forward declarations
@@ -15,66 +16,40 @@ class TaskState;
 class TaskMemento;
 
 /**
- * @brief Abstract base class representing an executable and reversible command.
- * 
- * Implements the Command design pattern, encapsulating actions and mutations 
- * performed on project states, tasks, and components to support undo/redo history stacks.
+ * @brief Abstract base class representing an executable and reversible command in the command pattern.
  */
 class Command {
 public:
-    /**
-     * @virtual ~Command()
-     * @brief Virtual destructor for the command interface.
-     */
-    virtual ~Command() = default;
+    virtual ~Command();
 
     /**
      * @brief Executes the command action.
-     * 
-     * @details Performs the target mutation on the workflow component, task, or project, 
-     *          capturing any necessary memento snapshots for subsequent rollback operations.
-     * 
-     * @throws `WorkflowError` If execution fails due to invalid state or preconditions.
      */
     virtual void execute() = 0;
 
     /**
-     * @brief Reverts the command action, restoring previous state.
-     * 
-     * @details Uses stored memento snapshots or inverse operations to return the system 
-     *          to the exact state it was in before `execute()` was called.
-     * 
-     * @throws `WorkflowError` If rollback operations fail.
+     * @brief Reverses the command action.
      */
     virtual void undo() = 0;
 
     /**
-     * @brief Generates a textual description of the command for logging and auditing.
-     * 
-     * @return `std::string` A human-readable description of the command action.
+     * @brief Generates a descriptive string summary of the command.
      */
     virtual std::string describe() const = 0;
 };
 
 /**
- * @brief Concrete command for mutating task states with undo/redo rollback support.
+ * @brief Concrete command for encapsulating task state transition events.
  */
 class TaskStateCommand : public Command {
 private:
-    Task* task;                                 ///< Non-owning raw pointer to the target task.
-    std::string label;                          ///< Label describing the state change operation.
-    TaskState* previousState;                   ///< Non-owning raw pointer capturing the state prior to execution.
-    std::function<void(Task&)> transition;     ///< Lambda encapsulating the state transition logic.
+    Task* task;                                     ///< Raw pointer to the target task.
+    std::function<void(Task&)> transition;          ///< Transition action function wrapper.
+    std::string label;                              ///< Descriptive command label.
+    TaskState* previousState;                       ///< Flyweight pointer to the previous task state.
 
 public:
-    /**
-     * @brief Constructs a task state mutation command.
-     * 
-     * @param t Raw pointer to the target task.
-     * @param trans Lambda containing the state transition behavior.
-     * @param lbl Descriptive string label for the command.
-     */
-    TaskStateCommand(Task* t, std::function<void(Task&)> trans, std::string lbl);
+    TaskStateCommand(Task* task, std::function<void(Task&)> transition, const std::string& label);
 
     void execute() override;
     void undo() override;
@@ -82,27 +57,17 @@ public:
 };
 
 /**
- * @brief Concrete command for adding a new work item component to a parent project container.
+ * @brief Concrete command for adding child work items to a project container.
  */
 class AddWorkItemCommand : public Command {
 private:
-    Project* parentProject;                     ///< Non-owning raw pointer to the parent project container.
-    WorkflowComponent* childComponent;          ///< Raw pointer to the child component being added (command takes ownership).
-    bool applied;                               ///< Flag tracking whether the item has been applied.
+    Project* parent;                                ///< Raw pointer to the parent project container.
+    WorkflowComponent* child;                       ///< Raw pointer to the child work item.
+    bool applied;                                   ///< Flag tracking whether the command has been successfully applied.
 
 public:
-    /**
-     * @brief Constructs an add work item command.
-     * 
-     * @param parent Raw pointer to the parent project.
-     * @param child Raw pointer to the child component to add.
-     */
     AddWorkItemCommand(Project* parent, WorkflowComponent* child);
-
-    /**
-     * @brief Destroys the command and safely cleans up owned child components if unapplied.
-     */
-    ~AddWorkItemCommand();
+    virtual ~AddWorkItemCommand();
 
     void execute() override;
     void undo() override;
@@ -110,20 +75,15 @@ public:
 };
 
 /**
- * @brief Concrete command for establishing a prerequisite dependency between workflow components.
+ * @brief Concrete command for managing dependency prerequisite links between components.
  */
 class AddDependencyCommand : public Command {
 private:
-    WorkflowComponent* dependentComponent;      ///< Non-owning raw pointer to the dependent component.
-    WorkflowComponent* prerequisiteComponent;   ///< Non-owning raw pointer to the prerequisite component.
+    WorkflowComponent* dependent;                   ///< Raw pointer to the dependent component.
+    WorkflowComponent* prerequisite;                ///< Raw pointer to the prerequisite component.
+    bool added;                                     ///< Flag tracking whether the dependency link was successfully established.
 
 public:
-    /**
-     * @brief Constructs an add dependency command.
-     * 
-     * @param dependent Raw pointer to the dependent component.
-     * @param prerequisite Raw pointer to the prerequisite component.
-     */
     AddDependencyCommand(WorkflowComponent* dependent, WorkflowComponent* prerequisite);
 
     void execute() override;
@@ -132,28 +92,24 @@ public:
 };
 
 /**
- * @brief Concrete command for editing task metadata attributes with memento snapshot support.
+ * @brief Concrete command acting as a memento caretaker for safe task information updates and edits.
  */
 class EditTaskInfoCommand : public Command {
 private:
-    Task* task;                                 ///< Non-owning raw pointer to the target task being edited.
-    nlohmann::json payload;                     ///< JSON payload containing the updated field attributes.
-    TaskMemento* oldMemento;                    ///< Raw pointer to the memento capturing state prior to edits.
-    TaskMemento* currentMemento;                ///< Raw pointer to the memento capturing state after edits.
+    Task* task;                                     ///< Raw pointer to the target task.
+    nlohmann::json payload;                         ///< JSON payload containing update fields.
+    TaskMemento* oldMemento;                        ///< Raw pointer to the pre-edit snapshot memento.
+    TaskMemento* currentMemento;                    ///< Raw pointer to the post-edit snapshot memento.
+    bool hasSnapshots;                              ///< Flag indicating if snapshots have been cached.
+
+    /**
+     * @brief Parses and applies the JSON modification payload to the task.
+     */
+    void applyPayload();
 
 public:
-    /**
-     * @brief Constructs an edit task info command.
-     * 
-     * @param t Raw pointer to the target task.
-     * @param p JSON payload of field updates.
-     */
-    EditTaskInfoCommand(Task* t, const nlohmann::json& p);
-
-    /**
-     * @brief Destroys the command and cleans up allocated memento snapshots.
-     */
-    ~EditTaskInfoCommand();
+    EditTaskInfoCommand(Task* task, const nlohmann::json& payload);
+    virtual ~EditTaskInfoCommand();
 
     void execute() override;
     void undo() override;
@@ -161,28 +117,22 @@ public:
 };
 
 /**
- * @brief Concrete command for executing routing decisions on a decision task.
+ * @brief Concrete command for handling complex routing decisions and branch exclusions.
  */
 class DecideCommand : public Command {
 private:
-    DecisionTask* task;                         ///< Non-owning raw pointer to the decision task.
-    nlohmann::json context;                     ///< JSON context evaluated by the routing strategy.
-    std::string previousSelection;              ///< String label of the previously selected branch route.
-    std::map<Task*, TaskState*> previousStates; ///< Map capturing previous states of affected branch targets for rollback.
+    DecisionTask* task;                             ///< Raw pointer to the decision task.
+    nlohmann::json context;                         ///< Evaluation context JSON object.
+    std::string chosen;                             ///< Label string of the selected branch.
+    std::map<Task*, TaskState*> previousStates;     ///< Map preserving prior states of affected tasks for rollback.
+
+    /**
+     * @brief Restores previous states and clears decision metadata upon undo/failure.
+     */
+    void restore();
 
 public:
-    /**
-     * @brief Constructs a decide command.
-     * 
-     * @param dt Raw pointer to the target decision task.
-     * @param ctx JSON evaluation context.
-     */
-    DecideCommand(DecisionTask* dt, const nlohmann::json& ctx);
-
-    /**
-     * @brief Destroys the decide command and cleans up any stored state maps.
-     */
-    ~DecideCommand();
+    DecideCommand(DecisionTask* task, const nlohmann::json& context);
 
     void execute() override;
     void undo() override;
