@@ -1,7 +1,6 @@
 #include "TaskStateFactory.h"
 #include "TaskState.h"
 #include "WorkflowError.h"
-#include "NotFoundError.h"
 
 TaskState* TaskStateFactory::get(const std::string& name) {
     if (name == PendingState::instance()->toString()) {
