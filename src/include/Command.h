@@ -1,291 +1,192 @@
-/**
- * @file Command.h
- * @brief Command pattern: abstract Command and the five concrete commands.
- */
-#pragma once
+#ifndef TIVIDY_COMMAND_H
+#define TIVIDY_COMMAND_H
 
 #include <functional>
 #include <map>
 #include <string>
+#include <nlohmann/json.hpp>
 
-#include "Support.h"
-#include "TaskMemento.h"
-#include "nlohmann/json.hpp"
-
+// Forward declarations
 class Task;
-class TaskState;
+class DecisionTask;
 class Project;
 class WorkflowComponent;
-class DecisionTask;
+class TaskState;
+class TaskMemento;
 
 /**
- * @brief Abstract base for every undoable, auditable action in the workflow engine.
- *
- * Each command is owned by exactly one `CommandHistory`. Redo is not a separate
- * operation: `CommandHistory::redo` calls `execute()` again, so every command must be
- * safely re-executable after `undo()`.
+ * @brief Abstract base class representing an executable and reversible command.
+ * 
+ * Implements the Command design pattern, encapsulating actions and mutations 
+ * performed on project states, tasks, and components to support undo/redo history stacks.
  */
 class Command {
 public:
     /**
-     * @brief Default constructor.
+     * @virtual ~Command()
+     * @brief Virtual destructor for the command interface.
      */
-    Command() {}
+    virtual ~Command() = default;
 
     /**
-     * @brief Virtual destructor so concrete commands are deleted correctly through a base pointer.
-     */
-    virtual ~Command();
-
-    /**
-     * @brief Performs the action.
-     *
-     * @throws `WorkflowError` If the action is not allowed. The system is left unchanged.
+     * @brief Executes the command action.
+     * 
+     * @details Performs the target mutation on the workflow component, task, or project, 
+     *          capturing any necessary memento snapshots for subsequent rollback operations.
+     * 
+     * @throws `WorkflowError` If execution fails due to invalid state or preconditions.
      */
     virtual void execute() = 0;
 
     /**
-     * @brief Reverts the effect of the last `execute()`.
+     * @brief Reverts the command action, restoring previous state.
+     * 
+     * @details Uses stored memento snapshots or inverse operations to return the system 
+     *          to the exact state it was in before `execute()` was called.
+     * 
+     * @throws `WorkflowError` If rollback operations fail.
      */
     virtual void undo() = 0;
 
     /**
-     * @brief Describes the action for the audit log.
-     *
-     * @return `std::string` One line of human-readable text.
+     * @brief Generates a textual description of the command for logging and auditing.
+     * 
+     * @return `std::string` A human-readable description of the command action.
      */
     virtual std::string describe() const = 0;
-
-private:
-    Command(const Command&) = delete;
-    Command& operator=(const Command&) = delete;
 };
 
 /**
- * @brief Generic lifecycle action (start, complete, block, fail, cancel, or an industry action).
- *
- * Applies a transition through the State pattern. The task's current `TaskState`
- * decides whether the transition is legal, not the command.
+ * @brief Concrete command for mutating task states with undo/redo rollback support.
  */
 class TaskStateCommand : public Command {
 private:
-    Task* task;                                 ///< Target task. BORROWED.
-    std::function<void(Task&)> transition;      ///< Calls the lifecycle event on the task.
-    std::string label;                          ///< Action name shown in the audit log.
-    TaskState* previousState;                   ///< State before execute(). BORROWED flyweight.
+    Task* task;                                 ///< Non-owning raw pointer to the target task.
+    std::string label;                          ///< Label describing the state change operation.
+    TaskState* previousState;                   ///< Non-owning raw pointer capturing the state prior to execution.
+    std::function<void(Task&)> transition;     ///< Lambda encapsulating the state transition logic.
 
 public:
     /**
-     * @brief Constructs a lifecycle command.
-     *
-     * @param task Raw pointer to the target task (borrowed).
-     * @param transition Functor that fires the event, e.g. a lambda calling `Task::complete`.
-     * @param label Action name used in the audit log (e.g. "complete").
+     * @brief Constructs a task state mutation command.
+     * 
+     * @param t Raw pointer to the target task.
+     * @param trans Lambda containing the state transition behavior.
+     * @param lbl Descriptive string label for the command.
      */
-    TaskStateCommand(Task* task, std::function<void(Task&)> transition, const std::string& label);
+    TaskStateCommand(Task* t, std::function<void(Task&)> trans, std::string lbl);
 
-    /**
-     * @brief Remembers the current state, then applies the transition.
-     *
-     * @throws `InvalidTransitionError` If the current state does not allow the event.
-     */
     void execute() override;
-
-    /**
-     * @brief Restores the remembered state and re-notifies dependents.
-     */
     void undo() override;
-
-    /**
-     * @brief Describes the action for the audit log.
-     *
-     * @return `std::string` e.g. "complete task T-3".
-     */
     std::string describe() const override;
 };
 
 /**
- * @brief Adds a component (task, decision or nested project) to a project.
- *
- * Ownership flips with the `applied` flag: the command owns the child while the add is
- * undone, and the project owns it once the add is applied.
+ * @brief Concrete command for adding a new work item component to a parent project container.
  */
 class AddWorkItemCommand : public Command {
 private:
-    Project* parent;                ///< Project receiving the child. BORROWED.
-    WorkflowComponent* child;       ///< OWNED by this command while !applied, otherwise by *parent.
-    bool applied;                   ///< True while the child is inside the project.
+    Project* parentProject;                     ///< Non-owning raw pointer to the parent project container.
+    WorkflowComponent* childComponent;          ///< Raw pointer to the child component being added (command takes ownership).
+    bool applied;                               ///< Flag tracking whether the item has been applied.
 
 public:
     /**
-     * @brief Constructs the command. TAKES ownership of child.
-     *
-     * @param parent Raw pointer to the project to add to (borrowed).
-     * @param child Raw pointer to an edge-free component; this command takes ownership.
+     * @brief Constructs an add work item command.
+     * 
+     * @param parent Raw pointer to the parent project.
+     * @param child Raw pointer to the child component to add.
      */
     AddWorkItemCommand(Project* parent, WorkflowComponent* child);
 
     /**
-     * @brief Deletes the child only if it is not currently owned by the project.
+     * @brief Destroys the command and safely cleans up owned child components if unapplied.
      */
-    ~AddWorkItemCommand() override;
+    ~AddWorkItemCommand();
 
-    /**
-     * @brief Adds the child to the project; ownership moves to the project.
-     *
-     * @throws `WorkflowError` If the project rejects the child. The command keeps ownership.
-     */
     void execute() override;
-
-    /**
-     * @brief Removes the child from the project; ownership returns to the command.
-     */
     void undo() override;
-
-    /**
-     * @brief Describes the action for the audit log.
-     *
-     * @return `std::string` e.g. "Add work item Review claim".
-     */
     std::string describe() const override;
 };
 
 /**
- * @brief Makes one component depend on another.
- *
- * Undo only removes a link this command actually created.
+ * @brief Concrete command for establishing a prerequisite dependency between workflow components.
  */
 class AddDependencyCommand : public Command {
 private:
-    WorkflowComponent* dependent;       ///< Component that waits. BORROWED.
-    WorkflowComponent* prerequisite;    ///< Component that must finish first. BORROWED.
-    bool added;                         ///< True if execute() created a new link.
+    WorkflowComponent* dependentComponent;      ///< Non-owning raw pointer to the dependent component.
+    WorkflowComponent* prerequisiteComponent;   ///< Non-owning raw pointer to the prerequisite component.
 
 public:
     /**
-     * @brief Constructs the command.
-     *
-     * @param dependent Raw pointer to the component that will wait (borrowed).
-     * @param prerequisite Raw pointer to the component that must finish first (borrowed).
+     * @brief Constructs an add dependency command.
+     * 
+     * @param dependent Raw pointer to the dependent component.
+     * @param prerequisite Raw pointer to the prerequisite component.
      */
     AddDependencyCommand(WorkflowComponent* dependent, WorkflowComponent* prerequisite);
 
-    /**
-     * @brief Links the two components in both directions.
-     *
-     * @throws `CyclicDependencyError` If the link would create a cycle or a self-dependency.
-     */
     void execute() override;
-
-    /**
-     * @brief Removes the link if this command created it.
-     */
     void undo() override;
-
-    /**
-     * @brief Describes the action for the audit log.
-     *
-     * @return `std::string` e.g. "Add dependency T-2 -> T-1".
-     */
     std::string describe() const override;
 };
 
 /**
- * @brief Edits task attributes. Memento caretaker for `Task`.
- *
- * Supported payload keys: `name`, `description`, `executor` {id, name, role},
- * `deadline` {year, month, day, hour, min} and `customFields` {key: value}.
- * The edit is all-or-nothing: a bad payload leaves the task unchanged.
+ * @brief Concrete command for editing task metadata attributes with memento snapshot support.
  */
 class EditTaskInfoCommand : public Command {
 private:
-    Task* task;                     ///< Task being edited. BORROWED.
-    nlohmann::json payload;         ///< Requested changes.
-    TaskMemento oldMemento;         ///< Snapshot before the edit (value, no new/delete).
-    TaskMemento currentMemento;     ///< Snapshot after the edit, used by redo.
-    bool hasSnapshots;              ///< True once the first execute() succeeded.
-
-    /**
-     * @brief Applies each payload key to the task.
-     *
-     * @throws `WorkflowError` If a key is unknown.
-     */
-    void applyPayload();
+    Task* task;                                 ///< Non-owning raw pointer to the target task being edited.
+    nlohmann::json payload;                     ///< JSON payload containing the updated field attributes.
+    TaskMemento* oldMemento;                    ///< Raw pointer to the memento capturing state prior to edits.
+    TaskMemento* currentMemento;                ///< Raw pointer to the memento capturing state after edits.
 
 public:
     /**
-     * @brief Constructs the command.
-     *
-     * @param task Raw pointer to the task to edit (borrowed).
-     * @param payload JSON object of the fields to change.
+     * @brief Constructs an edit task info command.
+     * 
+     * @param t Raw pointer to the target task.
+     * @param p JSON payload of field updates.
      */
-    EditTaskInfoCommand(Task* task, const nlohmann::json& payload);
+    EditTaskInfoCommand(Task* t, const nlohmann::json& p);
 
     /**
-     * @brief Applies the edit, or restores the post-edit snapshot on redo.
-     *
-     * @throws `WorkflowError` For unknown keys or malformed values. The task is restored first.
+     * @brief Destroys the command and cleans up allocated memento snapshots.
      */
+    ~EditTaskInfoCommand();
+
     void execute() override;
-
-    /**
-     * @brief Restores the pre-edit snapshot.
-     */
     void undo() override;
-
-    /**
-     * @brief Describes the action for the audit log.
-     *
-     * @return `std::string` e.g. "Edit task T-3".
-     */
     std::string describe() const override;
 };
 
 /**
- * @brief Makes a routing decision on a `DecisionTask`.
- *
- * Asks the task's `RoutingStrategy` for a branch, skips the targets of every branch not
- * chosen, then completes the decision task so the chosen targets become ready.
- * A rejected decision changes nothing. A decision is final: to change it, undo it first.
+ * @brief Concrete command for executing routing decisions on a decision task.
  */
 class DecideCommand : public Command {
 private:
-    DecisionTask* task;                         ///< Decision task. BORROWED.
-    nlohmann::json context;                     ///< Data passed to the routing strategy.
-    std::string chosen;                         ///< Branch chosen by the last successful execute().
-    std::map<Task*, TaskState*> previousStates; ///< States before execute(). BORROWED keys and flyweights.
-
-    /**
-     * @brief Restores every recorded state and clears the selection.
-     */
-    void restore();
+    DecisionTask* task;                         ///< Non-owning raw pointer to the decision task.
+    nlohmann::json context;                     ///< JSON context evaluated by the routing strategy.
+    std::string previousSelection;              ///< String label of the previously selected branch route.
+    std::map<Task*, TaskState*> previousStates; ///< Map capturing previous states of affected branch targets for rollback.
 
 public:
     /**
-     * @brief Constructs the command.
-     *
-     * @param task Raw pointer to the decision task (borrowed).
-     * @param context JSON data the task's `RoutingStrategy` uses to pick a branch.
+     * @brief Constructs a decide command.
+     * 
+     * @param dt Raw pointer to the target decision task.
+     * @param ctx JSON evaluation context.
      */
-    DecideCommand(DecisionTask* task, const nlohmann::json& context);
+    DecideCommand(DecisionTask* dt, const nlohmann::json& ctx);
 
     /**
-     * @brief Decides, skips the other branches and completes the decision task.
-     *
-     * @throws `NotFoundError` If the router is missing or returns an unknown branch label.
-     * @throws `InvalidTransitionError` If the decision task has not been started or a decision was already made.
+     * @brief Destroys the decide command and cleans up any stored state maps.
      */
+    ~DecideCommand();
+
     void execute() override;
-
-    /**
-     * @brief Restores every task's previous state and clears the selection.
-     */
     void undo() override;
-
-    /**
-     * @brief Describes the action for the audit log.
-     *
-     * @return `std::string` e.g. "Decide T-4 -> approve".
-     */
     std::string describe() const override;
 };
+
+#endif // TIVIDY_COMMAND_H

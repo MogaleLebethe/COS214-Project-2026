@@ -42,3 +42,6 @@ You can also pick `dev` from the branch dropdown on GitHub.
 
 ### Final release
 When the project is complete and tested, one Pull Request merges `dev` into `main`.
+=======
+# COS214-Project-2026
+>>>>>>> 8efbc07 (Rename project from Practical-6 to Project-2026)

@@ -1,5 +1,6 @@
-#include "../include/WorkflowComponent.h"
-#include "../include/WorkflowError.h"
+#include "WorkflowComponent.h"
+#include "WorkflowError.h"
+#include "Support.h"
 #include <algorithm>
 #include <set>
 #include <stdexcept>
@@ -26,53 +27,54 @@ bool canReach(const WorkflowComponent* from,
 
 }
 
-WorkflowComponent::WorkflowComponent() : ready_(true) {
-}
-
 WorkflowComponent::WorkflowComponent(const WorkflowComponent& other)
-    : id_(other.id_),
-      name_(other.name_),
-      description_(other.description_),
-      executor_(other.executor_),
-      deadline_(other.deadline_),
-      customFields_(other.customFields_),
-      participants_(other.participants_),
-      ready_(true) {
+    : id(other.id),
+      name(other.name),
+      description(other.description),
+      executorId(other.executorId),
+      deadline(other.deadline),
+      customFields(other.customFields),
+      comments(other.comments),
+      participants(other.participants),
+      ready(true) {
 }
 
 WorkflowComponent::~WorkflowComponent() {
 }
 
-std::string WorkflowComponent::getId() const { return id_; }
-std::string WorkflowComponent::getName() const { return name_; }
-void WorkflowComponent::setName(const std::string& name) { name_ = name; }
-std::string WorkflowComponent::getDescription() const { return description_; }
-void WorkflowComponent::setDescription(const std::string& desc) { description_ = desc; }
+std::string WorkflowComponent::getId() const { return id; }
+std::string WorkflowComponent::getName() const { return name; }
+void WorkflowComponent::setName(const std::string& componentName) { name = componentName; }
+std::string WorkflowComponent::getDescription() const { return description; }
+void WorkflowComponent::setDescription(const std::string& desc) { description = desc; }
 
-void WorkflowComponent::setExecutor(const Participant& p) { executor_ = p; }
-std::string WorkflowComponent::getExecutorId() const { return executor_.getId(); }
+void WorkflowComponent::setExecutor(const Participant& p) { 
+    executorId = p.getId(); 
+}
+
+std::string WorkflowComponent::getExecutorId() const { return executorId; }
 
 std::string WorkflowComponent::addParticipant(Participant p) {
-    for (std::size_t i = 0; i < participants_.size(); ++i) {
-        if (participants_[i].getId() == p.getId()) {
+    for (std::size_t i = 0; i < participants.size(); ++i) {
+        if (participants[i].getId() == p.getId()) {
             return p.getId();
         }
     }
-    participants_.push_back(p);
+    participants.push_back(p);
     return p.getId();
 }
 
-void WorkflowComponent::setDeadline(const DateTime& d) { deadline_ = d; }
+void WorkflowComponent::setDeadline(const DateTime& d) { deadline = d; }
 
-void WorkflowComponent::addComment(Comment comment) { comments_.push_back(comment); }
+void WorkflowComponent::addComment(Comment comment) { comments.push_back(comment); }
 
 void WorkflowComponent::setCustomField(const std::string& key, const std::string& value) {
-    customFields_[key] = value;
+    customFields[key] = value;
 }
 
 std::string WorkflowComponent::getCustomField(const std::string& key) const {
-    std::map<std::string, std::string>::const_iterator it = customFields_.find(key);
-    if (it == customFields_.end()) {
+    std::map<std::string, std::string>::const_iterator it = customFields.find(key);
+    if (it == customFields.end()) {
         return "";
     }
     return it->second;
@@ -83,20 +85,20 @@ bool WorkflowComponent::addDependency(WorkflowComponent* prerequisite) {
         throw std::logic_error("WorkflowComponent::addDependency: prerequisite must not be null");
     }
     if (prerequisite == this) {
-        throw CyclicDependencyError("A component cannot depend on itself: " + id_);
+        throw CyclicDependencyError("A component cannot depend on itself: " + id);
     }
 
-    if (std::find(dependencies_.begin(), dependencies_.end(), prerequisite) != dependencies_.end()) {
+    if (std::find(dependencies.begin(), dependencies.end(), prerequisite) != dependencies.end()) {
         return false;
     }
 
     std::set<const WorkflowComponent*> seen;
     if (canReach(prerequisite, this, seen)) {
-        throw CyclicDependencyError("Dependency would create a cycle: " + id_ +
+        throw CyclicDependencyError("Dependency would create a cycle: " + id +
                                     " -> " + prerequisite->getId());
     }
 
-    dependencies_.push_back(prerequisite);
+    dependencies.push_back(prerequisite);
     prerequisite->addDependent(this);
     evaluateDependencies();
     return true;
@@ -107,11 +109,11 @@ void WorkflowComponent::removeDependency(WorkflowComponent* prerequisite) {
         return;
     }
     std::vector<WorkflowComponent*>::iterator it =
-        std::find(dependencies_.begin(), dependencies_.end(), prerequisite);
-    if (it == dependencies_.end()) {
+        std::find(dependencies.begin(), dependencies.end(), prerequisite);
+    if (it == dependencies.end()) {
         return;
     }
-    dependencies_.erase(it);
+    dependencies.erase(it);
     prerequisite->removeDependent(this);
     evaluateDependencies();
 }
@@ -120,23 +122,23 @@ void WorkflowComponent::addDependent(WorkflowComponent* component) {
     if (component == nullptr) {
         throw std::logic_error("WorkflowComponent::addDependent: component must not be null");
     }
-    if (std::find(dependents_.begin(), dependents_.end(), component) == dependents_.end()) {
-        dependents_.push_back(component);
+    if (std::find(dependents.begin(), dependents.end(), component) == dependents.end()) {
+        dependents.push_back(component);
     }
 }
 
 void WorkflowComponent::removeDependent(WorkflowComponent* component) {
-    dependents_.erase(std::remove(dependents_.begin(), dependents_.end(), component),
-                      dependents_.end());
+    dependents.erase(std::remove(dependents.begin(), dependents.end(), component),
+                      dependents.end());
 }
 
 const std::vector<WorkflowComponent*>& WorkflowComponent::getDependencies() const {
-    return dependencies_;
+    return dependencies;
 }
 
 void WorkflowComponent::notifyDependents() {
-    for (std::size_t i = 0; i < dependents_.size(); ++i) {
-        dependents_[i]->update(this);
+    for (std::size_t i = 0; i < dependents.size(); ++i) {
+        dependents[i]->update(this);
     }
 }
 
@@ -145,27 +147,27 @@ void WorkflowComponent::update(WorkflowComponent*) {
 }
 
 bool WorkflowComponent::isReady() const {
-    return ready_;
+    return ready;
 }
 
 void WorkflowComponent::recomputeReadiness() {
     bool allDone = true;
-    for (std::size_t i = 0; i < dependencies_.size(); ++i) {
-        if (!dependencies_[i]->isCompleted()) {
+    for (std::size_t i = 0; i < dependencies.size(); ++i) {
+        if (!dependencies[i]->isCompleted()) {
             allDone = false;
             break;
         }
     }
-    ready_ = allDone;
+    ready = allDone;
 }
 
 void WorkflowComponent::unlinkAll() {
-    std::vector<WorkflowComponent*> myPrereqs = dependencies_;
+    std::vector<WorkflowComponent*> myPrereqs = dependencies;
     for (std::size_t i = 0; i < myPrereqs.size(); ++i) {
         removeDependency(myPrereqs[i]);
     }
 
-    std::vector<WorkflowComponent*> myDependents = dependents_;
+    std::vector<WorkflowComponent*> myDependents = dependents;
     for (std::size_t i = 0; i < myDependents.size(); ++i) {
         myDependents[i]->removeDependency(this);
     }
