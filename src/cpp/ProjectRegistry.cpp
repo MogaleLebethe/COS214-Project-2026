@@ -2,27 +2,26 @@
 #include "Support.h"
 #include "Project.h"
 #include "Task.h"
+#include "Command.h"
 #include "WorkflowError.h"
 
 ProjectRegistry::~ProjectRegistry()
 {
     for (auto item : sessions) {
-        if (item.second)
-            delete item.second;
+        delete item.second;
     }
     sessions.clear();
 }
 
 std::string ProjectRegistry::add(Project* p)
 {
-    if (!p) 
+    if (!p)
         throw WorkflowError("Project cannot be null");
-    
+
     std::string id = p->getId();
 
-    if (sessions.find(id) != sessions.end()) 
+    if (sessions.find(id) != sessions.end())
         throw WorkflowError("Project session already exists: " + id);
-    
 
     ProjectSession* session = new ProjectSession(id, p);
     sessions[id] = session;
@@ -36,7 +35,7 @@ Project &ProjectRegistry::findProject(const std::string &id) const
         throw NotFoundError("Project session not found: " + id);
     ProjectSession* session = it->second;
     Project* p = session->getActiveProject();
-    if (!p) 
+    if (!p)
         throw WorkflowError("Active project at " + id + " is null");
     return *p;
 }
@@ -56,7 +55,9 @@ Task &ProjectRegistry::findTask(const std::string &projectId, const std::string 
 WorkflowComponent &ProjectRegistry::findComponent(const std::string &projectId, const std::string &componentId) const
 {
     Project& project = findProject(projectId);
-    WorkflowComponent* component = project.findById(projectId);
+    if (componentId == projectId)
+        return project;
+    WorkflowComponent* component = project.findById(componentId);
     if (!component)
         throw NotFoundError("Component not found: " + componentId);
     return *component;
@@ -86,12 +87,38 @@ const AuditLog &ProjectRegistry::auditOf(const std::string &projectId) const
     return *log;
 }
 
+void ProjectRegistry::execute(const std::string &projectId, Command *cmd)
+{
+    auto it = sessions.find(projectId);
+    if (it == sessions.end()) {
+        delete cmd;
+        throw NotFoundError("Project session not found: " + projectId);
+    }
+    it->second->executeCommand(cmd);
+}
+
+void ProjectRegistry::undo(const std::string &projectId)
+{
+    auto it = sessions.find(projectId);
+    if (it == sessions.end())
+        throw NotFoundError("Project session not found: " + projectId);
+    it->second->undo();
+}
+
+void ProjectRegistry::redo(const std::string &projectId)
+{
+    auto it = sessions.find(projectId);
+    if (it == sessions.end())
+        throw NotFoundError("Project session not found: " + projectId);
+    it->second->redo();
+}
+
 std::vector<std::string> ProjectRegistry::listIds() const
 {
     std::vector<std::string> list;
     list.reserve(sessions.size());
 
-    for (const auto& item : sessions) 
+    for (const auto& item : sessions)
     {
         list.push_back(item.first);
     }

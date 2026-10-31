@@ -7,92 +7,115 @@
 
 // Forward declarations
 class Project;
-class ProjectSession;
-class CommandHistory;
-class AuditLog;
 class Task;
 class WorkflowComponent;
+class Command;
+class CommandHistory;
+class AuditLog;
+class ProjectSession;
 
 /**
- * @brief Manages isolated running project sessions, their history stacks, and audit logs.
- *
- * Acts as the centralised storage container for active project instances, ensuring
- * that each project session maintains independent command histories and state isolation.
+ * @brief Manages active project sessions, isolated project hierarchies, command histories, and audit logs.
  */
-class ProjectRegistry
-{
+class ProjectRegistry {
 private:
-    std::map<std::string, ProjectSession *> sessions; ///< Map linking project IDs to their isolated sessions.
+    std::map<std::string, ProjectSession*> sessions; ///< Map of project IDs to heap-allocated session objects.
 
 public:
     /**
-     * @brief Destroys the registry and cleans up all active project sessions.
+     * @brief Destroys the project registry and releases all managed project sessions.
      */
-    ~ProjectRegistry();
+    virtual ~ProjectRegistry();
 
     /**
-     * @brief Registers a new project instance and wraps it in an isolated session.
-     *
-     * @details Allocates a `ProjectSession` containing a dedicated `CommandHistory` and
-     *          `AuditLog` for the project.
-     *
-     * @param p Raw pointer to the project instance to register (registry takes ownership).
-     * @return `std::string` The unique identifier assigned or extracted from the project.
-     * @throws `WorkflowError` If registration fails.
+     * @brief Adds a new project to the registry wrapped in a managed session.
+     * 
+     * @param p Raw pointer to the `Project` to add.
+     * @return `std::string` The unique identifier of the added project.
+     * @throws `WorkflowError` If the pointer is null or a session with the same ID already exists.
      */
-    std::string add(Project *p);
+    std::string add(Project* p);
 
     /**
-     * @brief Locates and returns a reference to a project by its identifier.
-     *
-     * @param id The unique project identifier.
-     * @return `Project&` Reference to the target project object.
-     * @throws `NotFoundError` If the project ID does not exist in the registry.
+     * @brief Finds and retrieves a project reference by its unique identifier.
+     * 
+     * @param id Const reference to the project identifier string.
+     * @return `Project&` Reference to the active project instance.
+     * @throws `NotFoundError` If the project session is not found.
+     * @throws `WorkflowError` If the active project pointer is null.
      */
-    Project &findProject(const std::string &id) const;
+    Project& findProject(const std::string& id) const;
 
     /**
-     * @brief Locates and returns a reference to a specific task within a project.
-     *
-     * @param projectId The unique identifier of the project.
-     * @param taskId The unique identifier of the task.
-     * @return `Task&` Reference to the target task object.
-     * @throws `NotFoundError` If the project or task cannot be located.
+     * @brief Finds and retrieves a concrete task reference within a specific project tree.
+     * 
+     * @param projectId Const reference to the target project identifier string.
+     * @param taskId Const reference to the target task identifier string.
+     * @return `Task&` Reference to the found task instance.
+     * @throws `NotFoundError` If the project or task cannot be found.
+     * @throws `WorkflowError` If the found component is not a task.
      */
-    Task &findTask(const std::string &projectId, const std::string &taskId) const;
+    Task& findTask(const std::string& projectId, const std::string& taskId) const;
 
     /**
-     * @brief Locates and returns a reference to any workflow component within a project.
-     *
-     * @param projectId The unique identifier of the project.
-     * @param componentId The unique identifier of the workflow component (Task, DecisionTask, or Project).
-     * @return `WorkflowComponent&` Reference to the target component.
-     * @throws `NotFoundError` If the project or component cannot be located.
+     * @brief Finds and retrieves any workflow component reference within a specific project tree.
+     * 
+     * @param projectId Const reference to the target project identifier string.
+     * @param componentId Const reference to the target component identifier string.
+     * @return `WorkflowComponent&` Reference to the found workflow component.
+     * @throws `NotFoundError` If the project or component cannot be found.
      */
-    WorkflowComponent &findComponent(const std::string &projectId, const std::string &componentId) const;
+    WorkflowComponent& findComponent(const std::string& projectId, const std::string& componentId) const;
 
     /**
      * @brief Retrieves the command history manager for a specific project session.
-     *
-     * @param projectId The unique identifier of the project.
-     * @return `CommandHistory&` Reference to the project's dedicated command history stack.
-     * @throws `NotFoundError` If the project ID cannot be found.
+     * 
+     * @param projectId Const reference to the target project identifier string.
+     * @return `CommandHistory&` Reference to the project's command history controller.
+     * @throws `NotFoundError` If the project session is not found.
+     * @throws `WorkflowError` If the command history is null.
      */
-    CommandHistory &historyOf(const std::string &projectId);
+    CommandHistory& historyOf(const std::string& projectId);
 
     /**
      * @brief Retrieves the immutable audit log for a specific project session.
-     *
-     * @param projectId The unique identifier of the project.
+     * 
+     * @param projectId Const reference to the target project identifier string.
      * @return `const AuditLog&` Const reference to the project's audit log.
-     * @throws `NotFoundError` If the project ID cannot be found.
+     * @throws `NotFoundError` If the project session is not found.
+     * @throws `WorkflowError` If the audit log is null.
      */
-    const AuditLog &auditOf(const std::string &projectId) const;
+    const AuditLog& auditOf(const std::string& projectId) const;
 
     /**
-     * @brief Lists all registered project identifiers.
-     *
-     * @return `std::vector<std::string>` A collection of all active project IDs.
+     * @brief Executes a command routed through the project session for audit tracking.
+     * 
+     * @param projectId Const reference to the target project identifier string.
+     * @param cmd Raw pointer to the command to execute (ownership transferred).
+     * @throws `NotFoundError` If the project session is not found.
+     */
+    void execute(const std::string& projectId, Command* cmd);
+
+    /**
+     * @brief Undoes the last executed command on a project session.
+     * 
+     * @param projectId Const reference to the target project identifier string.
+     * @throws `NotFoundError` If the project session is not found.
+     */
+    void undo(const std::string& projectId);
+
+    /**
+     * @brief Redoes the last undone command on a project session.
+     * 
+     * @param projectId Const reference to the target project identifier string.
+     * @throws `NotFoundError` If the project session is not found.
+     */
+    void redo(const std::string& projectId);
+
+    /**
+     * @brief Retrieves a list of all active project identifier strings in the registry.
+     * 
+     * @return `std::vector<std::string>` Vector of project ID strings.
      */
     std::vector<std::string> listIds() const;
 };
