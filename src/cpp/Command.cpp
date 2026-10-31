@@ -3,9 +3,8 @@
  * @brief Implementations of Command and the five concrete commands.
  */
 #include "Command.h"
-#include "DateTime.h"
+#include "Support.h"
 #include "DecisionTask.h"
-#include "Participant.h"
 #include "Project.h"
 #include "Task.h"
 #include "TaskState.h"
@@ -140,7 +139,9 @@ DecideCommand::DecideCommand(DecisionTask* task, const nlohmann::json& context)
     : task(task), context(context) {}
 
 void DecideCommand::execute() {
-    previousSelection = task->getSelectedBranch();
+    if (!task->getSelectedBranch().empty())
+        throw InvalidTransitionError("Decision already made on " + task->getId() + "; undo it to decide again");
+
     previousStates.clear();
     previousStates[task] = task->getState();
 
@@ -183,7 +184,5 @@ std::string DecideCommand::describe() const {
 void DecideCommand::restore() {
     for (std::map<Task*, TaskState*>::iterator it = previousStates.begin(); it != previousStates.end(); ++it)
         it->first->setState(it->second);
-
-    if (previousSelection.empty()) task->clearDecision();
-    else task->setSelectedBranch(previousSelection);
+    task->clearDecision();
 }
