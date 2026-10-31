@@ -5,47 +5,24 @@
 
 ActionRegistry::ActionRegistry()
 {
-    registerAction("start", [](Task* task, const nlohmann::json& args) -> Command* {
-        return new TaskStateCommand(task, [](Task& t) { t.start(); }, "Start Task");
+    registerAction("start", [](Task* task, const nlohmann::json&) -> Command* {
+        return new TaskStateCommand(task, [](Task& t) { t.start(); }, "Start");
     });
 
-    registerAction("complete", [](Task* task, const nlohmann::json& args) -> Command* {
-        return new TaskStateCommand(task, [](Task& t) { t.complete(); }, "Complete Task");
+    registerAction("complete", [](Task* task, const nlohmann::json&) -> Command* {
+        return new TaskStateCommand(task, [](Task& t) { t.complete(); }, "Complete");
     });
 
-    registerAction("block", [](Task* task, const nlohmann::json& args) -> Command* {
-        return new TaskStateCommand(task, [](Task& t) { t.block(); }, "Block Task");
-    });   
-
-    registerAction("fail", [](Task* task, const nlohmann::json& args) -> Command* {
-        return new TaskStateCommand(task, [](Task& t) { t.fail(); }, "Fail Task");
+    registerAction("block", [](Task* task, const nlohmann::json&) -> Command* {
+        return new TaskStateCommand(task, [](Task& t) { t.block(); }, "Block");
     });
 
-    registerAction("cancel", [](Task* task, const nlohmann::json& args) -> Command* {
-        return new TaskStateCommand(task, [](Task& t) { t.cancel(); }, "Cancel Task");
-    });
-}
-
-ActionRegistry::ActionRegistry()
-{
-    registerAction("start", [](Task* task, const nlohmann::json& args) -> Command* {
-        return new TaskStateCommand(task, [](Task& t) { t.start(); }, "Start Task");
+    registerAction("fail", [](Task* task, const nlohmann::json&) -> Command* {
+        return new TaskStateCommand(task, [](Task& t) { t.fail(); }, "Fail");
     });
 
-    registerAction("complete", [](Task* task, const nlohmann::json& args) -> Command* {
-        return new TaskStateCommand(task, [](Task& t) { t.complete(); }, "Complete Task");
-    });
-
-    registerAction("block", [](Task* task, const nlohmann::json& args) -> Command* {
-        return new TaskStateCommand(task, [](Task& t) { t.block(); }, "Block Task");
-    });   
-
-    registerAction("fail", [](Task* task, const nlohmann::json& args) -> Command* {
-        return new TaskStateCommand(task, [](Task& t) { t.fail(); }, "Fail Task");
-    });
-
-    registerAction("cancel", [](Task* task, const nlohmann::json& args) -> Command* {
-        return new TaskStateCommand(task, [](Task& t) { t.cancel(); }, "Cancel Task");
+    registerAction("cancel", [](Task* task, const nlohmann::json&) -> Command* {
+        return new TaskStateCommand(task, [](Task& t) { t.cancel(); }, "Cancel");
     });
 }
 
@@ -58,12 +35,12 @@ void ActionRegistry::registerAction(const std::string& name, ActionCreator creat
 
 Command *ActionRegistry::create(const std::string &name, Task *task, const nlohmann::json &args) const
 {
-    if (!has(name))
-        throw NotFoundError("Action creator not registered: " + name);
     if (!task)
         throw WorkflowError("Cannot execute action on null task pointer");
-    ActionCreator c = creators.find(name)->second;
-    return c(task, args);
+    std::map<std::string, ActionCreator>::const_iterator it = creators.find(name);
+    if (it == creators.end())
+        throw NotFoundError("Action creator not registered: " + name);
+    return it->second(task, args);
 }
 
 bool ActionRegistry::has(const std::string &name) const
@@ -76,10 +53,8 @@ std::vector<std::string> ActionRegistry::names() const
     std::vector<std::string> names;
     names.reserve(creators.size());
 
-    for (const auto& item : creators)
-    {
-        names.push_back(item.first);
-    }
+    for (std::map<std::string, ActionCreator>::const_iterator it = creators.begin(); it != creators.end(); ++it)
+        names.push_back(it->first);
 
     return names;
 }
