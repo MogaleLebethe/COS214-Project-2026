@@ -7,24 +7,12 @@
 
 DecisionTask::DecisionTask() : router(nullptr) {}
 
-DecisionTask::DecisionTask(const DecisionTask& other) : Task(other), router(other.router), selectedBranch(other.selectedBranch) {
-    // Deep copy branches map and clone target tasks if owned or copy raw pointers based on architecture
-    for (std::map<std::string, std::vector<Task*> >::const_iterator it = other.branches.begin();
-         it != other.branches.end(); ++it) {
-        std::vector<Task*> clonedTargets;
-        for (std::size_t i = 0; i < it->second.size(); ++i) {
-            if (it->second[i]) {
-                WorkflowComponent* clonedComp = it->second[i]->clone();
-                clonedTargets.push_back(dynamic_cast<Task*>(clonedComp));
-            }
-        }
-        branches[it->first] = clonedTargets;
-    }
-}
+DecisionTask::DecisionTask(const DecisionTask& other)
+    : Task(other), router(other.router) {}
 
 DecisionTask::~DecisionTask() {
-    router = nullptr;
-    branches.clear();
+    router = nullptr;      // borrowed (owned by RouterRegistry)
+    branches.clear();      // borrowed (owned by the Project)
 }
 
 void DecisionTask::setRouter(RoutingStrategy* r) {
@@ -102,12 +90,5 @@ nlohmann::json DecisionTask::toJson() const {
 }
 
 WorkflowComponent* DecisionTask::clone() const {
-    DecisionTask* clonedDecision = nullptr;
-    try {
-        clonedDecision = new DecisionTask(*this);
-    } catch (...) {
-        delete clonedDecision;
-        throw;
-    }
-    return clonedDecision;
+    return new DecisionTask(*this);
 }
