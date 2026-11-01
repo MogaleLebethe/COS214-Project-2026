@@ -27,6 +27,8 @@ bool canReach(const WorkflowComponent* from,
 
 }
 
+//WorkflowComponent::WorkflowComponent() : ready(true) {}
+
 WorkflowComponent::WorkflowComponent(const WorkflowComponent& other)
     : id(other.id),
       name(other.name),
@@ -50,6 +52,7 @@ void WorkflowComponent::setDescription(const std::string& desc) { description = 
 
 void WorkflowComponent::setExecutor(const Participant& p) { 
     executorId = p.getId(); 
+    addParticipant(p);
 }
 
 std::string WorkflowComponent::getExecutorId() const { return executorId; }

@@ -38,7 +38,7 @@ void TaskBuilder::setDescription(const std::string& desc) {
 }
 
 void TaskBuilder::setExecutor(const Participant& executor) {
-    product->setExecutor(executor)
+    product->setExecutor(executor);
 }
 
 void TaskBuilder::setDeadline(const DateTime& deadline) {
