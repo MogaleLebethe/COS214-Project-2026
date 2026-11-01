@@ -5,7 +5,6 @@
 #include <vector>
 #include <nlohmann/json.hpp>
 
-// Forward declarations
 class Command;
 class Project;
 class AuditEntry;
@@ -24,6 +23,11 @@ private:
     int min;   ///< Minute of the hour (0-59).
 
 public:
+
+    DateTime();
+
+    bool empty() const;
+
     /**
      * @brief Constructs a `DateTime` instance.
      * 

@@ -6,8 +6,7 @@
 #include <vector>
 #include <nlohmann/json.hpp>
 
-// Forward declarations
-class WorkItemView;
+struct WorkItemView; 
 class ProjectBuilder;
 class Participant;
 
@@ -103,10 +102,10 @@ private:
      */
     bool contains(const WorkflowComponent* component) const;
 
-    std::vector<WorkflowComponent*> workItems; ///< The list of work items owned by the project.
-    static int counter;                        ///< Static counter used for generating sequential project IDs.
+    std::vector<WorkflowComponent*> workItems; 
+    static int counter;                        
 
     friend class ProjectBuilder;
 };
 
-#endif // TIVIDY_PROJECT_H
+#endif 

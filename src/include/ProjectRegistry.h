@@ -5,7 +5,6 @@
 #include <vector>
 #include <map>
 
-// Forward declarations
 class Project;
 class Task;
 class WorkflowComponent;
@@ -120,4 +119,4 @@ public:
     std::vector<std::string> listIds() const;
 };
 
-#endif // TIVIDY_PROJECT_REGISTRY_H
+#endif 

@@ -9,7 +9,7 @@
 // Forward declarations
 class TaskState;
 class TaskMemento;
-class WorkItemView;
+struct WorkItemView;
 
 /**
  * @brief Represents a concrete executable work item within the workflow tree.

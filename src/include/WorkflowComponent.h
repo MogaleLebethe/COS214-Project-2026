@@ -5,17 +5,13 @@
 #include <string>
 #include <vector>
 #include "nlohmann/json.hpp"
+#include "Support.h" 
 
-// Forward declarations
 class TaskBuilder;
 class ProjectBuilder;
 class DecisionTaskBuilder;
 class Project;
 class TaskMemento;
-class Participant;
-class DateTime;
-class Comment;
-class WorkItemView;
 
 /**
  * @brief Abstract base class representing a component in the workflow composite tree hierarchy.
@@ -193,4 +189,4 @@ private:
     WorkflowComponent& operator=(const WorkflowComponent&) = delete;
 };
 
-#endif // TIVIDY_WORKFLOW_COMPONENT_H
+#endif 

@@ -8,7 +8,6 @@
 #include <vector>
 #include <nlohmann/json.hpp>
 
-// Forward declarations of core subsystem dependencies
 class ProjectRegistry;
 class WorkflowFactory;
 class ReportService;
@@ -16,7 +15,7 @@ class DefinitionRepository;
 class ActionRegistry;
 class RouterRegistry;
 class Participant;
-class WorkItemView;
+struct WorkItemView; // had a mismatch here sigh, if issue , check plz
 
 /**
  * @brief Concrete facade entry point coordinating all workflow engine subsystems.
@@ -49,7 +48,7 @@ public:
                            DefinitionRepository& d, ActionRegistry& a, RouterRegistry& rr);
 
 
-    // ProjectManagement Interface Implementation 
+
     std::string createProject(std::string name, std::string desc = "") override;
     std::string createFromTemplate(const nlohmann::json& templateJson) override;
     std::string startInstance(std::string definitionId, std::string instanceName) override;
@@ -59,7 +58,7 @@ public:
     std::vector<std::string> listProjects() const override;
     std::string cloneProject(std::string projectId, std::string newName);
 
-    // Execution Interface Implementation 
+
     void performAction(std::string projectId, std::string taskId, std::string action, const nlohmann::json& args = {}) override;
     void editTask(std::string projectId, std::string taskId, const nlohmann::json& payload) override;
     std::string decide(std::string projectId, std::string taskId, const nlohmann::json& context) override;
@@ -68,11 +67,11 @@ public:
     bool canUndo(std::string projectId) const override;
     bool canRedo(std::string projectId) const override;
 
-    //  Reporting Interface Implementation 
+
     std::string viewProjectStatus(std::string projectId) const override;
     nlohmann::json exportProjectToJson(std::string projectId) const override;
     std::vector<WorkItemView> listAvailableWork(std::string projectId) const override;
     std::vector<std::string> getHistory(std::string projectId) const override;
 };
 
-#endif // TIVIDY_WORKFLOW_ENGINE_FACADE_H
+#endif 

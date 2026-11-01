@@ -5,8 +5,8 @@
 #include <vector>
 #include <nlohmann/json.hpp>
 
-// Forward declaration
-class WorkItemView;
+
+struct WorkItemView; 
 
 /**
  * @brief Interface for querying project status, metrics, and audit histories.
@@ -63,4 +63,4 @@ public:
     virtual std::vector<std::string> getHistory(std::string projectId) const = 0;
 };
 
-#endif // TIVIDY_REPORTING_H
+#endif 

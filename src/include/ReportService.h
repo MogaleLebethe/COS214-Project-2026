@@ -4,11 +4,8 @@
 #include <string>
 #include <vector>
 #include <nlohmann/json.hpp>
-
-// Forward declarations
 class Project;
-class WorkItemView;
-
+struct WorkItemView;
 /**
  * @brief Service responsible for generating status summaries, metrics, and exports from project graphs.
  * 
@@ -47,4 +44,4 @@ public:
     std::vector<WorkItemView> availableWork(const Project& p) const;
 };
 
-#endif // TIVIDY_REPORT_SERVICE_H
+#endif 
