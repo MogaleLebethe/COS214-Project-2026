@@ -2,7 +2,7 @@
 #include "Task.h"
 #include "WorkflowError.h"
 
-TaskState::~TaskState() = default;
+
 
 // PendingState
 
