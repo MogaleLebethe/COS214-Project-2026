@@ -27,7 +27,7 @@ bool canReach(const WorkflowComponent* from,
 
 }
 
-WorkflowComponent::WorkflowComponent() : deadline(2027, 1, 1), ready(true) {
+WorkflowComponent::WorkflowComponent() : ready(true) {
 }
 
 WorkflowComponent::WorkflowComponent(const WorkflowComponent& other)
@@ -45,18 +45,34 @@ WorkflowComponent::WorkflowComponent(const WorkflowComponent& other)
 WorkflowComponent::~WorkflowComponent() {
 }
 
-std::string WorkflowComponent::getId() const { return id; }
-std::string WorkflowComponent::getName() const { return name; }
-void WorkflowComponent::setName(const std::string& componentName) { name = componentName; }
-std::string WorkflowComponent::getDescription() const { return description; }
-void WorkflowComponent::setDescription(const std::string& desc) { description = desc; }
+std::string WorkflowComponent::getId() const {
+      return id; 
+}
+
+std::string WorkflowComponent::getName() const { 
+    return name; 
+}
+
+void WorkflowComponent::setName(const std::string& componentName) {
+    name = componentName; 
+}
+
+std::string WorkflowComponent::getDescription() const { 
+    return description; 
+}
+
+void WorkflowComponent::setDescription(const std::string& desc) {
+    description = desc; 
+}
 
 void WorkflowComponent::setExecutor(const Participant& p) { 
     executorId = p.getId(); 
     addParticipant(p);
 }
 
-std::string WorkflowComponent::getExecutorId() const { return executorId; }
+std::string WorkflowComponent::getExecutorId() const {
+    return executorId; 
+}
 
 std::string WorkflowComponent::addParticipant(Participant p) {
     for (std::size_t i = 0; i < participants.size(); ++i) {
@@ -68,9 +84,13 @@ std::string WorkflowComponent::addParticipant(Participant p) {
     return p.getId();
 }
 
-void WorkflowComponent::setDeadline(const DateTime& d) { deadline = d; }
+void WorkflowComponent::setDeadline(const DateTime& d) {
+    deadline = d; 
+}
 
-void WorkflowComponent::addComment(Comment comment) { comments.push_back(comment); }
+void WorkflowComponent::addComment(Comment comment) {
+    comments.push_back(comment); 
+}
 
 void WorkflowComponent::setCustomField(const std::string& key, const std::string& value) {
     customFields[key] = value;
