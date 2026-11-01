@@ -7,13 +7,14 @@
 
 int Task::counter = 0;
 
-Task::Task() : currentState(PendingState::instance()) {
-    id =generateId();
+Task::Task() : currentState(PendingState::instance()), failedByPrerequisite(false) {
+    id = generateId();
 }
 
 Task::Task(const Task& other)
     : WorkflowComponent(other),
-      currentState(PendingState::instance()){
+      currentState(PendingState::instance()),
+      failedByPrerequisite(false) {
     id = generateId();
 }
 
@@ -26,12 +27,29 @@ std::string Task::generateId(){
     return out.str();
 }
 
-void Task::start()  { currentState->start(this);}
-void Task::complete() {currentState->complete(this); }
-void Task::block() { currentState->block(this); }
-void Task::fail() { currentState->fail(this); }
-void Task::cancel() {currentState->cancel(this);}
-void Task::skip() { currentState->skip(this); }
+void Task::start()  {
+    currentState->start(this);
+}
+
+void Task::complete() {
+    currentState->complete(this);
+}
+
+void Task::block() {
+    currentState->block(this); 
+}
+
+void Task::fail() {
+    currentState->fail(this); 
+}
+
+void Task::cancel() {
+    currentState->cancel(this);
+}
+
+void Task::skip() {
+    currentState->skip(this);
+}
 
 TaskState* Task::getState() const {
     return currentState;
@@ -42,6 +60,7 @@ void Task::setState(TaskState* state) {
         throw WorkflowError("Task::setState: state must not be null");
     }
     currentState = state;
+    failedByPrerequisite = false; 
     notifyDependents();
 }
 
@@ -67,8 +86,33 @@ void Task::restoreMemento(const TaskMemento* m){
     customFields = m->customFields;
 }
 
+bool Task::hasFailedPrerequisite() const {
+    for(std::size_t i=0; i < dependencies.size();i++){
+        const Task* prerequisite = dynamic_cast<const Task*>(dependencies[i]);
+        if(prerequisite != nullptr && prerequisite->currentState == FailedState::instance()){
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool Task::isActive() const {
+    return currentState == PendingState::instance() ||
+           currentState == InProgressState::instance() ||
+           currentState == BlockedState::instance();
+}
+
 void Task::evaluateDependencies(){
     recomputeReadiness();
+
+    bool prerequisiteFailed = hasFailedPrerequisite();
+    if (prerequisiteFailed && isActive()) {
+        setState(FailedState::instance());
+        failedByPrerequisite = true;
+    } else if (!prerequisiteFailed && failedByPrerequisite && currentState == FailedState::instance()) {
+        setState(PendingState::instance());
+    }
 }
 
 bool Task::isCompleted() const {
@@ -98,30 +142,30 @@ nlohmann::json Task::toJson() const {
     j["type"] = "Task";
     j["id"] = id;
     j["name"] = name;
-    j["description"] =description;
-    j["status"]= currentState->toString();
+    j["description"] = description;
+    j["status"] = currentState->toString();
 
     nlohmann::json executorJson;
     executorJson["id"] = executorId;
     executorJson["name"] = "";
     executorJson["role"] = "";
-    for (std::size_t i = 0; i < participants.size(); ++i){
-        if (participants[i].getId() ==executorId) {
+    for (std::size_t i = 0; i < participants.size(); ++i) {
+        if (participants[i].getId() == executorId) {
             executorJson["name"] = participants[i].getName();
-            executorJson["role"]= participants[i].getRole();
+            executorJson["role"] = participants[i].getRole();
             break;
         }
     }
     j["executor"] = executorJson;
 
-    j["deadline"] =deadline.toString("%Y-%m-%d %H:%M");
+    j["deadline"] = deadline.toString("%Y-%m-%d %H:%M");
 
     nlohmann::json fields = nlohmann::json::object();
     for (std::map<std::string, std::string>::const_iterator it = customFields.begin();
-         it != customFields.end(); ++it){
+         it != customFields.end(); ++it) {
         fields[it->first] = it->second;
     }
-    j["customFields"]= fields;
+    j["customFields"] = fields;
 
     nlohmann::json prereqIds = nlohmann::json::array();
     for (std::size_t i = 0; i < dependencies.size(); ++i) {
@@ -132,7 +176,7 @@ nlohmann::json Task::toJson() const {
 }
 
 WorkflowComponent* Task::clone() const {
-    Task* clonedTask= nullptr;
+    Task* clonedTask = nullptr;
     try {
         clonedTask = new Task(*this);
     } catch (...) {

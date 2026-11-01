@@ -8,11 +8,12 @@
 DecisionTask::DecisionTask() : router(nullptr) {}
 
 DecisionTask::DecisionTask(const DecisionTask& other)
-    : Task(other), router(other.router) {}
+    : Task(other), router(other.router) {
+    }
 
 DecisionTask::~DecisionTask() {
-    router = nullptr;      // borrowed (owned by RouterRegistry)
-    branches.clear();      // borrowed (owned by the Project)
+    router = nullptr;      
+    branches.clear();      
 }
 
 void DecisionTask::setRouter(RoutingStrategy* r) {
@@ -36,6 +37,19 @@ void DecisionTask::addBranchTarget(const std::string& label, Task* target) {
     }
 }
 
+void DecisionTask::removeBranchTarget(Task* target) {
+    std::map<std::string, std::vector<Task*> >::iterator it = branches.begin();
+    while (it != branches.end()) {
+        std::vector<Task*>& targets = it->second;
+        targets.erase(std::remove(targets.begin(), targets.end(), target), targets.end());
+        if (targets.empty()) {
+            it = branches.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
 std::vector<Task*> DecisionTask::getBranchTargets() const {
     std::vector<Task*> all;
     for (std::map<std::string, std::vector<Task*> >::const_iterator it = branches.begin();
@@ -53,7 +67,7 @@ std::string DecisionTask::decide(const nlohmann::json& context) {
     if (router == nullptr) {
         throw NotFoundError("DecisionTask::decide: no router set for " + getId());
     }
-    std::string label = router->route(*this, context);   // STRATEGY: the router chooses
+    std::string label = router->route(*this, context);
     if (branches.find(label) == branches.end()) {
         throw NotFoundError("DecisionTask::decide: unknown branch \"" + label + "\"");
     }
@@ -70,7 +84,7 @@ const std::string& DecisionTask::getSelectedBranch() const {
 }
 
 nlohmann::json DecisionTask::toJson() const {
-    nlohmann::json j = Task::toJson();    // reuse everything a Task already exports
+    nlohmann::json j = Task::toJson();   
     j["type"] = "Decision";
     j["selectedBranch"] = selectedBranch;
 
