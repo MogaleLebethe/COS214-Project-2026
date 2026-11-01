@@ -2,7 +2,7 @@
 #include "Task.h"
 
 
-TaskMemento::TaskMemento(){
+TaskMemento::TaskMemento() : hasSnapshot(false), deadline(0,0,0) {
 }
 
 TaskMemento::TaskMemento(const Task& task){
@@ -12,10 +12,11 @@ TaskMemento::TaskMemento(const Task& task){
     this->deadline = task.deadline;
     this->participants = task.participants;
     this->customFields = task.customFields;
+
+    hasSnapshot = true; 
 }
 
 // helper
 bool TaskMemento::isEmpty() const{
-    return name.empty() && description.empty() && executorId.empty() && 
-           deadline.empty() && customFields.empty();
+    return !hasSnapshot;
 }

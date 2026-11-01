@@ -25,6 +25,8 @@ class TaskMemento {
         DateTime deadline;
         std::vector<Participant> participants;       
         std::map<std::string, std::string> customFields;
+
+        bool hasSnapshot; 
         
 
         /**
