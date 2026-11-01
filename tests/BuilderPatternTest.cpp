@@ -1,5 +1,4 @@
-#include <cassert>
-#include <iostream>
+#include "doctest/doctest.h"
 #include "WorkflowFactory.h"
 #include "Task.h"
 #include "Project.h"
@@ -10,90 +9,103 @@
 #include "RouterRegistry.h"
 #include "RoutingStrategy.h"
 
-int main() {
+TEST_CASE("TaskBuilder produces a task with the right fields") {
+    TaskBuilder builder;
+    builder.setBasicInfo("","Draft the brief");
+    builder.setExecutor(Participant("P-1", "Alex", "Copywriter"));
 
-    TaskBuilder taskBuilder;
-    taskBuilder.setBasicInfo("","Draft brief");
-    taskBuilder.setExecutor(Participant("P-1" ,"Christiano","Copywriter"));
-    
-    Task* task = taskBuilder.getResult();
-    assert(task != nullptr);
-    assert(task->getName() == "Draft brief");
-    assert(task->getExecutorId()=="P-1");
+    Task* task=builder.getResult();
+    CHECK(task!=nullptr);
+    CHECK(task->getName()=="Draft the brief");
+    CHECK(task->getExecutorId() =="P-1");
     delete task;
+}
 
+TEST_CASE("TaskBuilder rejects build() with no name") {
+    TaskBuilder builder;
+
+    CHECK_THROWS_AS(builder.build(),WorkflowError);
+}
+
+TEST_CASE("ProjectBuilder attaches nested work items") {
     TaskBuilder childBuilder;
+    childBuilder.setBasicInfo("","Design the mockups");
+    Task* child = childBuilder.getResult();
 
-    childBuilder.setBasicInfo("","Design mocks");
-    Task*child =childBuilder.getResult() ;
+    ProjectBuilder builder;
+    builder.setBasicInfo("","Q1 Rebrand Campaign");
+    builder.addWorkItem(child);
 
-    ProjectBuilder projectBuilder;
-    projectBuilder.setBasicInfo("", "UCL season");
-    projectBuilder.addWorkItem(child);
-    Project* project=projectBuilder.getResult();
+    Project* project = builder.getResult();
+    CHECK(project!=nullptr);
+    CHECK(project->getWorkItems().size()== 1);
 
-    assert(project !=nullptr);
-    assert(project->getWorkItems().size()== 1);
     delete project;
+}
 
-    TaskBuilder reuseBuilder;
-    reuseBuilder.setBasicInfo("","T1");
+TEST_CASE("builder instances stay isolated across repeated builds") {
+    TaskBuilder builder;
+    builder.setBasicInfo("","First task");
+    Task* first = builder.getResult();
 
-    Task* first = reuseBuilder.getResult();
-    reuseBuilder.setBasicInfo("","T2");
-    Task* second = reuseBuilder.getResult();
-    assert(first !=second);
+    builder.setBasicInfo("", "Second task");
+    Task* second = builder.getResult();
 
-    assert(first->getName()=="T1");
-    assert(second->getName()== "T2");
+    CHECK(first != second);
+    CHECK(first->getName()=="First task");
+    CHECK(second->getName()== "Second task");
 
     delete first;
     delete second;
+}
 
+TEST_CASE("DecisionTaskBuilder routes to the correct branch") {
     TaskBuilder approveBuilder;
-    approveBuilder.setBasicInfo("","Sub defenders");
+    approveBuilder.setBasicInfo("","Send approval email");
     Task* approveBranch = approveBuilder.getResult();
 
     TaskBuilder rejectBuilder;
-    rejectBuilder.setBasicInfo("", "Grill attackers on terrible Man yanited performance mmm");
-    Task* rejectBranch=rejectBuilder.getResult();
+    rejectBuilder.setBasicInfo("","Send rejection email");
+    Task* rejectBranch = rejectBuilder.getResult();
 
     FieldValueRoutingStrategy router("outcome");
-    DecisionTaskBuilder decisionBuilder;
-    decisionBuilder.setBasicInfo("", "Review SIr furgasons opps");
-    decisionBuilder.setRouter(&router);
-    decisionBuilder.addBranchTarget("approve",approveBranch);
-    decisionBuilder.addBranchTarget("reject" , rejectBranch);
+    DecisionTaskBuilder builder;
+    builder.setBasicInfo("","Review client response");
+    builder.setRouter(&router);
+    builder.addBranchTarget("approve",approveBranch);
+    builder.addBranchTarget("reject",rejectBranch);
 
-    DecisionTask* decision = decisionBuilder.getDecisionResult();
-
-    assert(decision!=nullptr);
-    assert(decision->getBranches().size()==2);
-    assert(decision->decide(nlohmann::json{{"outcome","approve"}})=="approve");
+    DecisionTask* decision = builder.getDecisionResult();
+    REQUIRE(decision != nullptr);
+    CHECK(decision->getBranches().size() ==2);
+    CHECK(decision->decide(nlohmann::json{{"outcome", "approve"}})== "approve");
 
     delete decision;
     delete approveBranch;
-
     delete rejectBranch;
+}
 
-    TaskBuilder directorTaskBuilder;
-    ProjectBuilder directorProjectBuilder;
+TEST_CASE("Director drives builders through a registered recipe") {
+    TaskBuilder taskBuilder;
+    ProjectBuilder projectBuilder;
     Director director;
+    director.registerBuilder("Task",&taskBuilder);
+    director.registerBuilder("Project", &projectBuilder);
 
-    director.registerBuilder("Task", &directorTaskBuilder);
+    Task* task =director.createNewTask("Book the venue");
+    CHECK(task !=nullptr);
+    delete task;
+}
 
-    director.registerBuilder("Project", &directorProjectBuilder);
-
-    Task* directedTask=director.createNewTask("Book Old tradf");
-    assert(directedTask!=nullptr);
-    delete directedTask;
-
-
+TEST_CASE("WorkflowFactory facade produces named components") {
     WorkflowFactory factory;
-    Task* factoryTask=factory.newTask("Prepare Ticket");
-    assert(factoryTask!=nullptr);
-    delete factoryTask;
 
-    std::cout<< "You won the prem mate"<<std::endl;
-    return 0;
+    Task* task=factory.newTask("Prepare invoice");
+    CHECK(task!=nullptr);
+    delete task;
+
+    Project* project= factory.newProject("Client Onboarding");
+    CHECK(project!= nullptr);
+    
+    delete project;
 }
