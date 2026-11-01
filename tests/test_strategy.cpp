@@ -1,8 +1,8 @@
 /**
  * @file test_strategy.cpp
- * @brief Strategy pattern: FieldValueRoutingStrategy, RouterRegistry and routing through DecisionTask.
+ * @brief Strategy pattern (doctest): FieldValueRoutingStrategy, RouterRegistry and routing through DecisionTask.
  */
-#include <gtest/gtest.h>
+#include "doctest/doctest.h"
 
 #include <stdexcept>
 #include <string>
@@ -48,99 +48,101 @@ private:
 
 }  // namespace
 
+TEST_SUITE_BEGIN("strategy");
+
 // ---------------------------------------------------------------- FieldValueRoutingStrategy
 
-TEST(FieldValueRouting, ReturnsTheStringField) {
+TEST_CASE("FieldValueRouting: returns the string field") {
     FieldValueRoutingStrategy s("outcome");
     DecisionTask d;
-    EXPECT_EQ("approve", s.route(d, {{"outcome", "approve"}}));
-    EXPECT_EQ("outcome", s.getField());
+    CHECK(s.route(d, {{"outcome", "approve"}}) == "approve");
+    CHECK(s.getField() == "outcome");
 }
 
-TEST(FieldValueRouting, ConvertsNonStringValuesToText) {
+TEST_CASE("FieldValueRouting: converts non string values to text") {
     FieldValueRoutingStrategy s("approved");
     DecisionTask d;
-    EXPECT_EQ("true", s.route(d, {{"approved", true}}));
-    EXPECT_EQ("3", s.route(d, {{"approved", 3}}));
+    CHECK(s.route(d, {{"approved", true}}) == "true");
+    CHECK(s.route(d, {{"approved", 3}}) == "3");
 }
 
-TEST(FieldValueRouting, MissingFieldThrowsNotFound) {
+TEST_CASE("FieldValueRouting: missing field throws not found") {
     FieldValueRoutingStrategy s("outcome");
     DecisionTask d;
-    EXPECT_THROW(s.route(d, {{"other", "x"}}), NotFoundError);
-    EXPECT_THROW(s.route(d, nlohmann::json()), NotFoundError);
-    EXPECT_THROW(s.route(d, nlohmann::json::array()), NotFoundError);
+    CHECK_THROWS_AS(s.route(d, {{"other", "x"}}), NotFoundError);
+    CHECK_THROWS_AS(s.route(d, nlohmann::json()), NotFoundError);
+    CHECK_THROWS_AS(s.route(d, nlohmann::json::array()), NotFoundError);
 }
 
 // ---------------------------------------------------------------- RouterRegistry
 
-TEST(RouterRegistryTest, AddGetHasKeys) {
+TEST_CASE("RouterRegistryTest: add get has keys") {
     RouterRegistry routers;
     FieldValueRoutingStrategy* s = new FieldValueRoutingStrategy("outcome");
     routers.add("claimOutcome", s);
 
-    EXPECT_EQ(s, routers.get("claimOutcome"));
-    EXPECT_TRUE(routers.has("claimOutcome"));
-    EXPECT_FALSE(routers.has("other"));
-    EXPECT_EQ(std::vector<std::string>{"claimOutcome"}, routers.keys());
+    CHECK(routers.get("claimOutcome") == s);
+    CHECK(routers.has("claimOutcome"));
+    CHECK_FALSE(routers.has("other"));
+    CHECK(routers.keys() == std::vector<std::string>{"claimOutcome"});
 }
 
-TEST(RouterRegistryTest, UnknownKeyThrowsNotFound) {
+TEST_CASE("RouterRegistryTest: unknown key throws not found") {
     RouterRegistry routers;
-    EXPECT_THROW(routers.get("missing"), NotFoundError);
+    CHECK_THROWS_AS(routers.get("missing"), NotFoundError);
 }
 
-TEST(RouterRegistryTest, ReplacingDeletesOldAndDestructorDeletesAll) {
+TEST_CASE("RouterRegistryTest: replacing deletes old and destructor deletes all") {
     liveStrategies = 0;
     {
         RouterRegistry routers;
         routers.add("a", new FixedRouter("1"));
         routers.add("b", new FixedRouter("2"));
-        EXPECT_EQ(2, liveStrategies);
+        CHECK(liveStrategies == 2);
 
         routers.add("a", new FixedRouter("3"));
-        EXPECT_EQ(2, liveStrategies);
+        CHECK(liveStrategies == 2);
 
         DecisionTask d;
-        EXPECT_EQ("3", routers.get("a")->route(d, nlohmann::json()));
+        CHECK(routers.get("a")->route(d, nlohmann::json()) == "3");
     }
-    EXPECT_EQ(0, liveStrategies);
+    CHECK(liveStrategies == 0);
 }
 
-TEST(RouterRegistryTest, AddingSameStrategyUnderSameKeyIsHarmless) {
+TEST_CASE("RouterRegistryTest: adding same strategy under same key is harmless") {
     RouterRegistry routers;
     FixedRouter* s = new FixedRouter("x");
     routers.add("a", s);
     routers.add("a", s);
-    EXPECT_EQ(s, routers.get("a"));
+    CHECK(routers.get("a") == s);
 }
 
-TEST(RouterRegistryTest, MisuseThrowsLogicError) {
+TEST_CASE("RouterRegistryTest: misuse throws logic error") {
     RouterRegistry routers;
     FixedRouter* s = new FixedRouter("x");
     routers.add("a", s);
 
-    EXPECT_THROW(routers.add("b", s), std::logic_error);
-    EXPECT_THROW(routers.add("c", nullptr), std::logic_error);
-    EXPECT_FALSE(routers.has("b"));
-    EXPECT_FALSE(routers.has("c"));
+    CHECK_THROWS_AS(routers.add("b", s), std::logic_error);
+    CHECK_THROWS_AS(routers.add("c", nullptr), std::logic_error);
+    CHECK_FALSE(routers.has("b"));
+    CHECK_FALSE(routers.has("c"));
 }
 
 // ---------------------------------------------------------------- Routing through DecisionTask
 
-TEST(StrategyRouting, DecisionTaskUsesItsRouter) {
+TEST_CASE("StrategyRouting: decision task uses its router") {
     RouterRegistry routers;
     routers.add("claimOutcome", new FieldValueRoutingStrategy("outcome"));
     DecisionTask d;
     d.addBranchTarget("approve", new Task());
     d.setRouter(routers.get("claimOutcome"));
 
-    EXPECT_EQ("approve", d.decide({{"outcome", "approve"}}));
-    EXPECT_EQ("approve", d.getSelectedBranch());
+    CHECK(d.decide({{"outcome", "approve"}}) == "approve");
+    CHECK(d.getSelectedBranch() == "approve");
     for (Task* t : d.getBranchTargets()) delete t;
 }
 
-TEST(StrategyRouting, SwappingStrategyChangesTheDecision) {
+TEST_CASE("StrategyRouting: swapping strategy changes the decision") {
     FixedRouter always("reject");
     FieldValueRoutingStrategy byField("outcome");
     Project project;
@@ -155,13 +157,13 @@ TEST(StrategyRouting, SwappingStrategyChangesTheDecision) {
     nlohmann::json context = {{"outcome", "approve"}};
 
     d->setRouter(&byField);
-    EXPECT_EQ("approve", d->decide(context));
+    CHECK(d->decide(context) == "approve");
     d->clearDecision();
     d->setRouter(&always);
-    EXPECT_EQ("reject", d->decide(context));
+    CHECK(d->decide(context) == "reject");
 }
 
-TEST(StrategyRouting, IndustrySpecificStrategyRoutesOnData) {
+TEST_CASE("StrategyRouting: industry specific strategy routes on data") {
     AmountThresholdRouter rule(50000);
     Project project;
     DecisionTask* d = new DecisionTask();
@@ -174,17 +176,17 @@ TEST(StrategyRouting, IndustrySpecificStrategyRoutesOnData) {
     d->addBranchTarget("auto", autoPay);
     d->setRouter(&rule);
 
-    EXPECT_EQ("manager", d->decide({{"amount", 80000}}));
+    CHECK(d->decide({{"amount", 80000}}) == "manager");
     d->clearDecision();
-    EXPECT_EQ("auto", d->decide({{"amount", 1200}}));
+    CHECK(d->decide({{"amount", 1200}}) == "auto");
 }
 
-TEST(StrategyRouting, DecisionWithoutRouterThrowsNotFound) {
+TEST_CASE("StrategyRouting: decision without router throws not found") {
     DecisionTask d;
-    EXPECT_THROW(d.decide({{"outcome", "approve"}}), NotFoundError);
+    CHECK_THROWS_AS(d.decide({{"outcome", "approve"}}), NotFoundError);
 }
 
-TEST(StrategyRouting, DecideCommandSkipsTheBranchTheRouterDidNotChoose) {
+TEST_CASE("StrategyRouting: decide command skips the branch the router did not choose") {
     RouterRegistry routers;
     routers.add("claimOutcome", new FieldValueRoutingStrategy("outcome"));
     Project project;
@@ -201,6 +203,8 @@ TEST(StrategyRouting, DecideCommandSkipsTheBranchTheRouterDidNotChoose) {
     d->start();
 
     history.executeCommand(new DecideCommand(d, {{"outcome", "reject"}}));
-    EXPECT_EQ("Skipped", approve->getState()->toString());
-    EXPECT_TRUE(reject->isReady());
+    CHECK(approve->getState()->toString() == "Skipped");
+    CHECK(reject->isReady());
 }
+
+TEST_SUITE_END();

@@ -1,8 +1,8 @@
 /**
  * @file test_command.cpp
- * @brief Command pattern: lifecycle actions, structure edits, task edits, decisions and undo/redo.
+ * @brief Command pattern (doctest): lifecycle actions, structure edits, task edits, decisions and undo/redo.
  */
-#include <gtest/gtest.h>
+#include "doctest/doctest.h"
 
 #include <string>
 
@@ -18,8 +18,7 @@
 
 namespace {
 
-class CommandTest : public ::testing::Test {
-protected:
+struct CommandTest {
     Project project;
     CommandHistory history;
     ActionRegistry actions;
@@ -59,195 +58,197 @@ protected:
 
 }  // namespace
 
+TEST_SUITE_BEGIN("command");
+
 // ---------------------------------------------------------------- TaskStateCommand
 
-TEST_F(CommandTest, StartAndCompleteFollowTheStatePattern) {
+TEST_CASE_FIXTURE(CommandTest, "start and complete follow the state pattern") {
     Task* t = addTask("Review");
     act(t, "start");
-    EXPECT_EQ("In Progress", state(t));
+    CHECK(state(t) == "In Progress");
     act(t, "complete");
-    EXPECT_EQ("Complete", state(t));
-    EXPECT_TRUE(t->isCompleted());
+    CHECK(state(t) == "Complete");
+    CHECK(t->isCompleted());
 }
 
-TEST_F(CommandTest, UndoAndRedoRestoreLifecycleState) {
+TEST_CASE_FIXTURE(CommandTest, "undo and redo restore lifecycle state") {
     Task* t = addTask("Review");
     act(t, "start");
     act(t, "complete");
 
     history.undo();
-    EXPECT_EQ("In Progress", state(t));
+    CHECK(state(t) == "In Progress");
     history.redo();
-    EXPECT_EQ("Complete", state(t));
+    CHECK(state(t) == "Complete");
 }
 
-TEST_F(CommandTest, UndoingCompletionMakesDependentNotReadyAgain) {
+TEST_CASE_FIXTURE(CommandTest, "undoing completion makes dependent not ready again") {
     Task* a = addTask("A");
     Task* b = addTask("B");
     run(new AddDependencyCommand(b, a));
     act(a, "start");
     act(a, "complete");
-    EXPECT_TRUE(b->isReady());
+    CHECK(b->isReady());
 
     history.undo();
-    EXPECT_FALSE(b->isReady());
+    CHECK_FALSE(b->isReady());
 }
 
-TEST_F(CommandTest, IllegalTransitionIsRejectedWithoutChanges) {
+TEST_CASE_FIXTURE(CommandTest, "illegal transition is rejected without changes") {
     Task* t = addTask("Review");
-    EXPECT_THROW(act(t, "complete"), InvalidTransitionError);
-    EXPECT_EQ("Pending", state(t));
+    CHECK_THROWS_AS(act(t, "complete"), InvalidTransitionError);
+    CHECK(state(t) == "Pending");
 
     history.undo();
-    EXPECT_TRUE(project.getWorkItems().empty());
+    CHECK(project.getWorkItems().empty());
 }
 
-TEST_F(CommandTest, StartIsRejectedUntilPrerequisitesAreComplete) {
+TEST_CASE_FIXTURE(CommandTest, "start is rejected until prerequisites are complete") {
     Task* a = addTask("A");
     Task* b = addTask("B");
     run(new AddDependencyCommand(b, a));
 
-    EXPECT_THROW(act(b, "start"), InvalidTransitionError);
-    EXPECT_EQ("Pending", state(b));
+    CHECK_THROWS_AS(act(b, "start"), InvalidTransitionError);
+    CHECK(state(b) == "Pending");
 }
 
-TEST_F(CommandTest, BlockAndCancelFromInProgress) {
+TEST_CASE_FIXTURE(CommandTest, "block and cancel from in progress") {
     Task* a = addTask("A");
     Task* b = addTask("B");
     act(a, "start");
     act(a, "block");
-    EXPECT_EQ("Blocked", state(a));
+    CHECK(state(a) == "Blocked");
     act(b, "start");
     act(b, "cancel");
-    EXPECT_EQ("Cancelled", state(b));
+    CHECK(state(b) == "Cancelled");
 }
 
-TEST_F(CommandTest, FailThenRetry) {
+TEST_CASE_FIXTURE(CommandTest, "fail then retry") {
     Task* t = addTask("Payment");
     act(t, "start");
     act(t, "fail");
-    EXPECT_EQ("Failed", state(t));
+    CHECK(state(t) == "Failed");
     act(t, "start");
-    EXPECT_EQ("In Progress", state(t));
+    CHECK(state(t) == "In Progress");
 }
 
 // ---------------------------------------------------------------- ActionRegistry
 
-TEST_F(CommandTest, RegistryHasBuiltInLifecycleActions) {
-    EXPECT_TRUE(actions.has("start"));
-    EXPECT_TRUE(actions.has("complete"));
-    EXPECT_TRUE(actions.has("block"));
-    EXPECT_TRUE(actions.has("fail"));
-    EXPECT_TRUE(actions.has("cancel"));
-    EXPECT_FALSE(actions.has("approve"));
+TEST_CASE_FIXTURE(CommandTest, "registry has built in lifecycle actions") {
+    CHECK(actions.has("start"));
+    CHECK(actions.has("complete"));
+    CHECK(actions.has("block"));
+    CHECK(actions.has("fail"));
+    CHECK(actions.has("cancel"));
+    CHECK_FALSE(actions.has("approve"));
 }
 
-TEST_F(CommandTest, UnknownActionThrowsNotFound) {
+TEST_CASE_FIXTURE(CommandTest, "unknown action throws not found") {
     Task* t = addTask("Review");
-    EXPECT_THROW(actions.create("teleport", t, nlohmann::json()), NotFoundError);
+    CHECK_THROWS_AS(actions.create("teleport", t, nlohmann::json()), NotFoundError);
 }
 
-TEST_F(CommandTest, IndustryActionCanBeRegistered) {
+TEST_CASE_FIXTURE(CommandTest, "industry action can be registered") {
     actions.registerAction("approve", [](Task* task, const nlohmann::json&) -> Command* {
         return new TaskStateCommand(task, [](Task& t) { t.complete(); }, "Approve");
     });
     Task* t = addTask("Claim review");
     act(t, "start");
     act(t, "approve");
-    EXPECT_EQ("Complete", state(t));
+    CHECK(state(t) == "Complete");
 }
 
 // ---------------------------------------------------------------- AddWorkItemCommand
 
-TEST_F(CommandTest, AddWorkItemUndoAndRedo) {
+TEST_CASE_FIXTURE(CommandTest, "add work item undo and redo") {
     Task* t = addTask("Review");
-    EXPECT_EQ(1u, project.getWorkItems().size());
+    CHECK(project.getWorkItems().size() == 1u);
 
     history.undo();
-    EXPECT_TRUE(project.getWorkItems().empty());
+    CHECK(project.getWorkItems().empty());
     history.redo();
-    ASSERT_EQ(1u, project.getWorkItems().size());
-    EXPECT_EQ(t, project.getWorkItems()[0]);
+    REQUIRE(project.getWorkItems().size() == 1u);
+    CHECK(project.getWorkItems()[0] == t);
 }
 
-TEST_F(CommandTest, UndoneAddIsFreedWhenRedoIsDiscarded) {
+TEST_CASE_FIXTURE(CommandTest, "undone add is freed when redo is discarded") {
     addTask("Temporary");
     history.undo();
     addTask("Replacement");
-    EXPECT_FALSE(history.canRedo());
-    EXPECT_EQ(1u, project.getWorkItems().size());
+    CHECK_FALSE(history.canRedo());
+    CHECK(project.getWorkItems().size() == 1u);
 }
 
 // ---------------------------------------------------------------- AddDependencyCommand
 
-TEST_F(CommandTest, AddDependencyUndoRemovesTheLink) {
+TEST_CASE_FIXTURE(CommandTest, "add dependency undo removes the link") {
     Task* a = addTask("A");
     Task* b = addTask("B");
     run(new AddDependencyCommand(b, a));
-    EXPECT_FALSE(b->isReady());
+    CHECK_FALSE(b->isReady());
 
     history.undo();
-    EXPECT_TRUE(b->getDependencies().empty());
-    EXPECT_TRUE(b->isReady());
+    CHECK(b->getDependencies().empty());
+    CHECK(b->isReady());
 }
 
-TEST_F(CommandTest, CyclicDependencyIsRejectedWithoutChanges) {
+TEST_CASE_FIXTURE(CommandTest, "cyclic dependency is rejected without changes") {
     Task* a = addTask("A");
     Task* b = addTask("B");
     run(new AddDependencyCommand(b, a));
 
-    EXPECT_THROW(run(new AddDependencyCommand(a, b)), CyclicDependencyError);
-    EXPECT_TRUE(a->getDependencies().empty());
+    CHECK_THROWS_AS(run(new AddDependencyCommand(a, b)), CyclicDependencyError);
+    CHECK(a->getDependencies().empty());
 }
 
 // ---------------------------------------------------------------- EditTaskInfoCommand (Memento)
 
-TEST_F(CommandTest, EditTaskUndoAndRedo) {
+TEST_CASE_FIXTURE(CommandTest, "edit task undo and redo") {
     Task* t = addTask("Review");
     nlohmann::json payload = {{"name", "Review claim"},
                               {"description", "Check documents"},
                               {"customFields", {{"priority", "high"}}}};
 
     run(new EditTaskInfoCommand(t, payload));
-    EXPECT_EQ("Review claim", t->getName());
-    EXPECT_EQ("high", t->getCustomField("priority"));
+    CHECK(t->getName() == "Review claim");
+    CHECK(t->getCustomField("priority") == "high");
 
     history.undo();
-    EXPECT_EQ("Review", t->getName());
-    EXPECT_EQ("", t->getDescription());
+    CHECK(t->getName() == "Review");
+    CHECK(t->getDescription() == "");
 
     history.redo();
-    EXPECT_EQ("Review claim", t->getName());
-    EXPECT_EQ("Check documents", t->getDescription());
+    CHECK(t->getName() == "Review claim");
+    CHECK(t->getDescription() == "Check documents");
 }
 
-TEST_F(CommandTest, EditAssignsExecutor) {
+TEST_CASE_FIXTURE(CommandTest, "edit assigns executor") {
     Task* t = addTask("Assess claim");
     nlohmann::json payload = {{"executor", {{"id", "u7"}, {"name", "Thandi"}, {"role", "Assessor"}}}};
 
     run(new EditTaskInfoCommand(t, payload));
-    EXPECT_EQ("u7", t->getExecutorId());
+    CHECK(t->getExecutorId() == "u7");
     history.undo();
-    EXPECT_EQ("", t->getExecutorId());
+    CHECK(t->getExecutorId() == "");
 }
 
-TEST_F(CommandTest, EditWithUnknownFieldChangesNothing) {
+TEST_CASE_FIXTURE(CommandTest, "edit with unknown field changes nothing") {
     Task* t = addTask("Review");
     nlohmann::json payload = {{"name", "New"}, {"colour", "blue"}};
 
-    EXPECT_THROW(run(new EditTaskInfoCommand(t, payload)), WorkflowError);
-    EXPECT_EQ("Review", t->getName());
+    CHECK_THROWS_AS(run(new EditTaskInfoCommand(t, payload)), WorkflowError);
+    CHECK(t->getName() == "Review");
 }
 
-TEST_F(CommandTest, EditWithMalformedValueIsAWorkflowError) {
+TEST_CASE_FIXTURE(CommandTest, "edit with malformed value is a workflow error") {
     Task* t = addTask("Review");
     nlohmann::json payload = {{"deadline", {{"year", "soon"}}}};
-    EXPECT_THROW(run(new EditTaskInfoCommand(t, payload)), WorkflowError);
+    CHECK_THROWS_AS(run(new EditTaskInfoCommand(t, payload)), WorkflowError);
 }
 
 // ---------------------------------------------------------------- DecideCommand
 
-TEST_F(CommandTest, DecisionSkipsOtherBranchesAndCompletesDecision) {
+TEST_CASE_FIXTURE(CommandTest, "decision skips other branches and completes decision") {
     DecisionTask* d = addDecision("Route claim");
     Task* approve = addTask("Pay out");
     Task* reject = addTask("Send rejection");
@@ -256,14 +257,14 @@ TEST_F(CommandTest, DecisionSkipsOtherBranchesAndCompletesDecision) {
     act(d, "start");
 
     run(new DecideCommand(d, {{"outcome", "approve"}}));
-    EXPECT_EQ("approve", d->getSelectedBranch());
-    EXPECT_EQ("Complete", state(d));
-    EXPECT_EQ("Skipped", state(reject));
-    EXPECT_EQ("Pending", state(approve));
-    EXPECT_TRUE(approve->isReady());
+    CHECK(d->getSelectedBranch() == "approve");
+    CHECK(state(d) == "Complete");
+    CHECK(state(reject) == "Skipped");
+    CHECK(state(approve) == "Pending");
+    CHECK(approve->isReady());
 }
 
-TEST_F(CommandTest, UndoDecisionRestoresEverything) {
+TEST_CASE_FIXTURE(CommandTest, "undo decision restores everything") {
     DecisionTask* d = addDecision("Route claim");
     Task* approve = addTask("Pay out");
     Task* reject = addTask("Send rejection");
@@ -273,36 +274,36 @@ TEST_F(CommandTest, UndoDecisionRestoresEverything) {
     run(new DecideCommand(d, {{"outcome", "approve"}}));
 
     history.undo();
-    EXPECT_EQ("", d->getSelectedBranch());
-    EXPECT_EQ("In Progress", state(d));
-    EXPECT_EQ("Pending", state(reject));
-    EXPECT_FALSE(approve->isReady());
+    CHECK(d->getSelectedBranch() == "");
+    CHECK(state(d) == "In Progress");
+    CHECK(state(reject) == "Pending");
+    CHECK_FALSE(approve->isReady());
 
     history.redo();
-    EXPECT_EQ("Skipped", state(reject));
+    CHECK(state(reject) == "Skipped");
 }
 
-TEST_F(CommandTest, DecisionWithUnknownBranchChangesNothing) {
+TEST_CASE_FIXTURE(CommandTest, "decision with unknown branch changes nothing") {
     DecisionTask* d = addDecision("Route claim");
     d->addBranchTarget("approve", addTask("Pay out"));
     act(d, "start");
 
-    EXPECT_THROW(run(new DecideCommand(d, {{"outcome", "maybe"}})), NotFoundError);
-    EXPECT_EQ("In Progress", state(d));
-    EXPECT_EQ("", d->getSelectedBranch());
+    CHECK_THROWS_AS(run(new DecideCommand(d, {{"outcome", "maybe"}})), NotFoundError);
+    CHECK(state(d) == "In Progress");
+    CHECK(d->getSelectedBranch() == "");
 }
 
-TEST_F(CommandTest, DecisionBeforeStartIsRejected) {
+TEST_CASE_FIXTURE(CommandTest, "decision before start is rejected") {
     DecisionTask* d = addDecision("Route claim");
     Task* reject = addTask("Send rejection");
     d->addBranchTarget("approve", addTask("Pay out"));
     d->addBranchTarget("reject", reject);
 
-    EXPECT_THROW(run(new DecideCommand(d, {{"outcome", "approve"}})), InvalidTransitionError);
-    EXPECT_EQ("Pending", state(reject));
+    CHECK_THROWS_AS(run(new DecideCommand(d, {{"outcome", "approve"}})), InvalidTransitionError);
+    CHECK(state(reject) == "Pending");
 }
 
-TEST_F(CommandTest, SecondDecisionIsRejectedUntilUndone) {
+TEST_CASE_FIXTURE(CommandTest, "second decision is rejected until undone") {
     DecisionTask* d = addDecision("Route claim");
     d->addBranchTarget("approve", addTask("Pay out"));
     d->addBranchTarget("reject", addTask("Send rejection"));
@@ -310,33 +311,35 @@ TEST_F(CommandTest, SecondDecisionIsRejectedUntilUndone) {
     run(new DecideCommand(d, {{"outcome", "approve"}}));
     act(d, "start");
 
-    EXPECT_THROW(run(new DecideCommand(d, {{"outcome", "reject"}})), InvalidTransitionError);
-    EXPECT_EQ("approve", d->getSelectedBranch());
+    CHECK_THROWS_AS(run(new DecideCommand(d, {{"outcome", "reject"}})), InvalidTransitionError);
+    CHECK(d->getSelectedBranch() == "approve");
 }
 
 // ---------------------------------------------------------------- CommandHistory
 
-TEST_F(CommandTest, UndoAndRedoOnEmptyHistoryThrow) {
+TEST_CASE_FIXTURE(CommandTest, "undo and redo on empty history throw") {
     CommandHistory empty;
-    EXPECT_FALSE(empty.canUndo());
-    EXPECT_FALSE(empty.canRedo());
-    EXPECT_THROW(empty.undo(), WorkflowError);
-    EXPECT_THROW(empty.redo(), WorkflowError);
+    CHECK_FALSE(empty.canUndo());
+    CHECK_FALSE(empty.canRedo());
+    CHECK_THROWS_AS(empty.undo(), WorkflowError);
+    CHECK_THROWS_AS(empty.redo(), WorkflowError);
 }
 
-TEST_F(CommandTest, NewActionClearsRedo) {
+TEST_CASE_FIXTURE(CommandTest, "new action clears redo") {
     Task* t = addTask("Review");
     act(t, "start");
     history.undo();
-    EXPECT_TRUE(history.canRedo());
+    CHECK(history.canRedo());
 
     act(t, "start");
-    EXPECT_FALSE(history.canRedo());
+    CHECK_FALSE(history.canRedo());
 }
 
-TEST_F(CommandTest, DescribeNamesTheAction) {
+TEST_CASE_FIXTURE(CommandTest, "describe names the action") {
     Task* t = addTask("Review");
     Command* cmd = actions.create("start", t, nlohmann::json());
-    EXPECT_NE(std::string::npos, cmd->describe().find(t->getId()));
+    CHECK(cmd->describe().find(t->getId()) != std::string::npos);
     delete cmd;
 }
+
+TEST_SUITE_END();
