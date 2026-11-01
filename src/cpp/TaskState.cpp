@@ -159,7 +159,7 @@ bool CompletedState::isSatisfied() const {
     return true;
 }
 
-// ==================== FailedState ====================
+//FailedState
 
 TaskState* FailedState::instance() {
     static FailedState s;

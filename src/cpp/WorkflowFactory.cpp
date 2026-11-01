@@ -10,9 +10,7 @@
 #include <stdexcept>
 #include <algorithm>
 
-// ==========================================
-// TaskBuilder Implementation
-// ==========================================
+// TaskBuilder
 
 TaskBuilder::TaskBuilder() : product(nullptr) {
     reset();
@@ -40,7 +38,7 @@ void TaskBuilder::setDescription(const std::string& desc) {
 }
 
 void TaskBuilder::setExecutor(const Participant& executor) {
-    product->executor = executor;
+    product->setExecutor(executor)
 }
 
 void TaskBuilder::setDeadline(const DateTime& deadline) {
@@ -79,9 +77,8 @@ Task* TaskBuilder::getResult() {
 }
 
 
-// ==========================================
-// DecisionTaskBuilder Implementation
-// ==========================================
+// DecisionTaskBuilder
+
 
 DecisionTaskBuilder::DecisionTaskBuilder() : decisionProduct(nullptr) {
     reset();
@@ -127,9 +124,7 @@ DecisionTask* DecisionTaskBuilder::getDecisionResult() {
 }
 
 
-// ==========================================
-// ProjectBuilder Implementation
-// ==========================================
+// ProjectBuilder
 
 ProjectBuilder::ProjectBuilder() : product(nullptr) {
     reset();
@@ -157,7 +152,7 @@ void ProjectBuilder::setDescription(const std::string& desc) {
 }
 
 void ProjectBuilder::setExecutor(const Participant& executor) {
-    product->executor = executor;
+    product->setExecutor(executor);
 }
 
 void ProjectBuilder::setDeadline(const DateTime& deadline) {
@@ -196,9 +191,7 @@ Project* ProjectBuilder::getResult() {
 }
 
 
-// ==========================================
-// Director Implementation
-// ==========================================
+// Director
 
 Director::Director(const RouterRegistry* registry) : routerRegistry(registry) {}
 
@@ -313,9 +306,7 @@ WorkflowComponent* Director::createFromTemplate(const nlohmann::json& templateJs
 }
 
 
-// ==========================================
-// WorkflowFactory Implementation
-// ==========================================
+// WorkflowFactory
 
 WorkflowFactory::WorkflowFactory(const RouterRegistry* routerRegistry)
     : director(routerRegistry) {

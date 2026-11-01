@@ -1,32 +1,36 @@
-#include <cassert>
-#include <iostream>
+#include "doctest/doctest.h"
 #include "Task.h"
 #include "TaskState.h"
 #include "WorkflowError.h"
 
-int main(){
-    Task t1; 
-    assert(t1.getState()->toString() == "Pending");
-    t1.start();
-    assert(t1.getState()->toString() == "In Progress");
-    t1.complete(); 
-    assert(t1.getState()->toString() =="Completed"); 
-    bool threw = false; 
-    try{
-        t1.complete();
+TEST_CASE("a new task starts in Pending"){
+    Task t; 
+    CHECK(t.getState()->toString() == "Pending");
+}
 
-    } catch (const WorkflowError&){
-        threw = true;
-    }
-    assert(threw);
+TEST_CASE("start() trans Pending to In Progress"){
+    Task t; 
+    t.start();
+    CHECK(t.getState()->toString() == "In Progress");
+}
 
-    Task t2;
-    t2.block();
-    assert(t2.getState()->toString() == "Blocked");
-    t2.start();
-    assert(t2.getState()->toString() == "In Progress");
-    std::cout << "All tests pass" << std::endl; 
-    return 0; 
+TEST_CASE("complete() transition In Progress to Completed"){
+    Task t; 
+    t.start(); 
+    t.complete(); 
+    CHECK(task.getState()->toString() == "Completed");
+}
 
-
+TEST_CASE("completing an already-completed task is invalid"){
+    Task t; 
+    t.start(); 
+    t.complete(); 
+    CHECK THROWS AS(t.complete(), WorkflowError);
+}
+TEST_CASE("a Pending task can be blocked, then starte again"){
+    Task t; 
+    t.block(); 
+    CHECK(t.getState()->toString() == "Blocked");
+    t.start(); 
+    CHECK(t.getState()->toString() == "In Progress");
 }
