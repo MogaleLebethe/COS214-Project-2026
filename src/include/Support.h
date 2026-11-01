@@ -365,6 +365,12 @@ public:
      * @return `nlohmann::json` JSON array of audit entries.
      */
     nlohmann::json toJson() const;
+
+    /**
+     * @brief Returns a vector of strings of the AuditEntries
+    *
+     */
+    std::vector<std::string> toStrings() const;
 };
 
 /**
@@ -495,6 +501,7 @@ public:
      * @brief Redoes the last undone command.
      */
     void redo();
+
 };
 
 #endif // TIVIDY_SUPPORT_H

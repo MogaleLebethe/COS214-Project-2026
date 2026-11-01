@@ -57,6 +57,7 @@ public:
     void addDependency(std::string projectId, std::string dependentId, std::string prerequisiteId) override;
     void assignExecutor(std::string projectId, std::string taskId, const Participant& p) override;
     std::vector<std::string> listProjects() const override;
+    std::string cloneProject(std::string projectId, std::string newName);
 
     // Execution Interface Implementation 
     void performAction(std::string projectId, std::string taskId, std::string action, const nlohmann::json& args = {}) override;
