@@ -23,6 +23,7 @@ class TaskMemento {
         std::string description;
         std::string executorId;
         DateTime deadline;
+        std::vector<Participant> participants;       
         std::map<std::string, std::string> customFields;
         
 

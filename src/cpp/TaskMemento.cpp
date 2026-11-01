@@ -1,6 +1,7 @@
 #include "TaskMemento.h"
 #include "Task.h"
 
+
 TaskMemento::TaskMemento(){
 }
 
@@ -9,6 +10,7 @@ TaskMemento::TaskMemento(const Task& task){
     this->description = task.description;
     this->executorId = task.executorId;
     this->deadline = task.deadline;
+    this->participants = task.participants;
     this->customFields = task.customFields;
 }
 

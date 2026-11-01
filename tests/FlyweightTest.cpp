@@ -1,11 +1,10 @@
-#include <cassert>
-#include <iostream>
+#include "doctest/doctest.h"
 #include "Task.h"
 #include "TaskState.h"
 #include "TaskStateFactory.h"
 #include "WorkflowError.h"
 
-int main(){
+TEST_CASE("")
     TaskState* p1 = TaskStateFactory::get("Pending"); 
     TaskState* p2 = TaskStateFactory::get("Pending");
     assert(p1 == p2); 
