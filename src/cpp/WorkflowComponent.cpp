@@ -27,7 +27,8 @@ bool canReach(const WorkflowComponent* from,
 
 }
 
-//WorkflowComponent::WorkflowComponent() : ready(true) {}
+WorkflowComponent::WorkflowComponent() : deadline(2027, 1, 1), ready(true) {
+}
 
 WorkflowComponent::WorkflowComponent(const WorkflowComponent& other)
     : id(other.id),

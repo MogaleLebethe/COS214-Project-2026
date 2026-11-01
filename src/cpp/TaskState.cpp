@@ -3,7 +3,6 @@
 #include "WorkflowError.h"
 
 
-
 // PendingState
 
 TaskState* PendingState::instance() {
@@ -167,6 +166,9 @@ TaskState* FailedState::instance() {
 }
 
 void FailedState::start(Task* task) {
+    if (!task->isReady()) {
+        throw InvalidTransitionError("FailedState::start: Prerequisite not satisfied");
+    }
     task->setState(InProgressState::instance());
 }
 
