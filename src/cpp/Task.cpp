@@ -58,15 +58,15 @@ TaskMemento* Task::createMemento() const {
 }
 
 void Task::restoreMemento(const TaskMemento* m) {
-    if (m == nullptr || !m->isValid()) {
+    if (m == nullptr || !m->isEmpty()) {
         throw WorkflowError("Task::restoreMemento: memento is null or empty");
     }
-    name = m->getName();
-    description = m->getDescription();
-    executor = m->getExecutor();
-    deadline = m->getDeadline();
-    participants = m->getParticipants();
-    customFields = m->getCustomFields();
+    name = m->name;
+    description = m->description;
+    executorId = m->executorId;
+    deadline = m->deadline;
+    participants = m->participants;
+    customFields = m->customFields;
 }
 
 void Task::evaluateDependencies() {
