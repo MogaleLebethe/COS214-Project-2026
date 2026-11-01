@@ -7,7 +7,6 @@
 #include <map>
 #include <nlohmann/json.hpp>
 
-// Forward declarations
 class RoutingStrategy;
 class Task;
 
@@ -19,9 +18,9 @@ class Task;
  */
 class DecisionTask : public Task {
 private:
-    RoutingStrategy* router;                            ///< Non-owning raw pointer to the routing strategy.
-    std::map<std::string, std::vector<Task*> > branches; ///< Map of branch labels to target task vectors.
-    std::string selectedBranch;                         ///< The label of the currently selected branch.
+    RoutingStrategy* router;                           
+    std::map<std::string, std::vector<Task*> > branches; 
+    std::string selectedBranch;                        
 
 public:
     /**
@@ -55,6 +54,11 @@ public:
      * @param target Raw pointer to the target `Task` to add.
      */
     void addBranchTarget(const std::string& label, Task* target);
+
+    /**
+     * @brief Removes a task from every branch it belongs to; branches left empty are removed/dropped. 
+     */
+    void removeBranchTarget(Task* target);
 
     /**
      * @brief Retrieves the vector of target tasks associated with branch labels.
@@ -92,7 +96,7 @@ public:
     const std::map<std::string, std::vector<Task*> >& getBranches() const;
 
     /**
-     * @brief Serializes the decision task into a structured JSON representation.
+     * @brief Converts the decision task into a structured JSON representation.
      * 
      * @return `nlohmann::json` The serialized JSON object.
      */
@@ -106,4 +110,4 @@ public:
     WorkflowComponent* clone() const override;
 };
 
-#endif // TIVIDY_DECISION_TASK_H
+#endif 
