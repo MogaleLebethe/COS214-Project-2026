@@ -4,7 +4,7 @@
 
 TaskState::~TaskState() = default;
 
-// ==================== PendingState ====================
+// PendingState
 
 TaskState* PendingState::instance() {
     static PendingState s;
@@ -34,11 +34,12 @@ void PendingState::cancel(Task* task) {
     task->setState(CancelledState::instance());
 }
 
+
 void PendingState::skip(Task* task) {
     task->setState(SkippedState::instance());
 }
 
-std::string PendingState::toString() const {
+std::string PendingState::toString()const {
     return "Pending";
 }
 
@@ -46,7 +47,7 @@ bool PendingState::isSatisfied() const {
     return false;
 }
 
-// ==================== InProgressState ====================
+//InProgressState
 
 TaskState* InProgressState::instance() {
     static InProgressState s;
@@ -68,7 +69,6 @@ void InProgressState::block(Task* task) {
 void InProgressState::fail(Task* task) {
     task->setState(FailedState::instance());
 }
-
 void InProgressState::cancel(Task* task) {
     task->setState(CancelledState::instance());
 }
@@ -81,17 +81,16 @@ std::string InProgressState::toString() const {
     return "In Progress";
 }
 
-bool InProgressState::isSatisfied() const {
+bool InProgressState::isSatisfied() const{
     return false;
 }
 
-// ==================== BlockedState ====================
+//BlockedState
 
 TaskState* BlockedState::instance() {
     static BlockedState s;
     return &s;
 }
-
 void BlockedState::start(Task* task) {
     task->setState(InProgressState::instance());
 }
@@ -109,13 +108,12 @@ void BlockedState::fail(Task* task) {
 }
 
 void BlockedState::cancel(Task* task) {
-    task->setState(CancelledState::instance());
+    task->setState( CancelledState::instance());
 }
 
 void BlockedState::skip(Task*) {
     throw InvalidTransitionError("BlockedState::skip: Not a valid event from Blocked");
 }
-
 std::string BlockedState::toString() const {
     return "Blocked";
 }
@@ -124,7 +122,7 @@ bool BlockedState::isSatisfied() const {
     return false;
 }
 
-// ==================== CompletedState ====================
+//CompletedState
 
 TaskState* CompletedState::instance() {
     static CompletedState s;
@@ -134,28 +132,26 @@ TaskState* CompletedState::instance() {
 void CompletedState::start(Task* task) {
     task->setState(InProgressState::instance());
 }
-
 void CompletedState::complete(Task*) {
     throw InvalidTransitionError("CompletedState::complete: Task is already completed");
 }
 
 void CompletedState::block(Task*) {
-    throw InvalidTransitionError("CompletedState::block: A completed task cannot be blocked");
+    throw InvalidTransitionError("CompletedState::block: A completed task cant be blocked");
 }
-
 void CompletedState::fail(Task*) {
-    throw InvalidTransitionError("CompletedState::fail: A completed task cannot fail");
+    throw InvalidTransitionError("CompletedState::fail: A completed task cant fail");
 }
 
 void CompletedState::cancel(Task*) {
-    throw InvalidTransitionError("CompletedState::cancel: A completed task cannot be cancelled");
+    throw InvalidTransitionError("CompletedState::cancel: A completed task cant be cancelled");
 }
 
 void CompletedState::skip(Task*) {
-    throw InvalidTransitionError("CompletedState::skip: A completed task cannot be skipped");
+    throw InvalidTransitionError("CompletedState::skip: A completed task cant be skipped");
 }
 
-std::string CompletedState::toString() const {
+std::string CompletedState::toString()const {
     return "Complete";
 }
 
@@ -175,7 +171,7 @@ void FailedState::start(Task* task) {
 }
 
 void FailedState::complete(Task*) {
-    throw InvalidTransitionError("FailedState::complete: Failed task cannot be completed");
+    throw InvalidTransitionError("FailedState::complete: Failed task cant be completed");
 }
 
 void FailedState::block(Task*) {
@@ -185,7 +181,6 @@ void FailedState::block(Task*) {
 void FailedState::fail(Task*) {
     throw InvalidTransitionError("FailedState::fail: Task has already failed");
 }
-
 void FailedState::cancel(Task* task) {
     task->setState(CancelledState::instance());
 }
@@ -196,13 +191,14 @@ void FailedState::skip(Task*) {
 
 std::string FailedState::toString() const {
     return "Failed";
+
 }
 
-bool FailedState::isSatisfied() const {
+bool FailedState::isSatisfied()const {
     return false;
 }
 
-// ==================== CancelledState ====================
+//CancelledState
 
 TaskState* CancelledState::instance() {
     static CancelledState s;
@@ -222,6 +218,7 @@ void CancelledState::block(Task*) {
 }
 
 void CancelledState::fail(Task*) {
+
     throw InvalidTransitionError("CancelledState::fail: Cancelled is a terminal state");
 }
 
@@ -233,7 +230,7 @@ void CancelledState::skip(Task*) {
     throw InvalidTransitionError("CancelledState::skip: Cancelled is a terminal state");
 }
 
-std::string CancelledState::toString() const {
+std::string CancelledState::toString()const {
     return "Cancelled";
 }
 
@@ -241,7 +238,7 @@ bool CancelledState::isSatisfied() const {
     return false;
 }
 
-// ==================== SkippedState ====================
+//SkippedState
 
 TaskState* SkippedState::instance() {
     static SkippedState s;
@@ -265,7 +262,8 @@ void SkippedState::fail(Task*) {
 }
 
 void SkippedState::cancel(Task*) {
-    throw InvalidTransitionError("SkippedState::cancel: Skipped is a terminal state");
+
+    throw InvalidTransitionError("SkippedState::cancel: Skipped is a terminal  state");
 }
 
 void SkippedState::skip(Task*) {
