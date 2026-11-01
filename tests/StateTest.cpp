@@ -18,14 +18,14 @@ TEST_CASE("complete() transition In Progress to Completed"){
     Task t; 
     t.start(); 
     t.complete(); 
-    CHECK(task.getState()->toString() == "Completed");
+    CHECK(t.getState()->toString() == "Complete");
 }
 
 TEST_CASE("completing an already-completed task is invalid"){
     Task t; 
     t.start(); 
     t.complete(); 
-    CHECK THROWS AS(t.complete(), WorkflowError);
+    CHECK_THROWS_AS(t.complete(), WorkflowError);
 }
 TEST_CASE("a Pending task can be blocked, then starte again"){
     Task t; 

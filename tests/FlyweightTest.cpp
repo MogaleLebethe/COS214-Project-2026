@@ -4,23 +4,27 @@
 #include "TaskStateFactory.h"
 #include "WorkflowError.h"
 
-TEST_CASE("")
+TEST_CASE("factory returns the same singleton for the same name"){
     TaskState* p1 = TaskStateFactory::get("Pending"); 
     TaskState* p2 = TaskStateFactory::get("Pending");
-    assert(p1 == p2); 
+    CHECK(p1 == p2); 
+}
+
+TEST_CASE("two tasks in same state share one state instance"){
     Task t1; 
     Task t2; 
-    assert(t1.getState() == t2.getState()); 
-    assert(t2.getState()->toString() == "Pending");
+    CHECK(t1.getState() == t2.getState()); 
+}
 
-    bool threwNotF = false;
-    try{
-        TaskStateFactory::get("NotARealState");
-    }
-    catch (const WorkflowError&){
-        threwNotF = true; 
-    }
-    assert(threwNotF);
-    std::cout << "All test pass" << std::endl;
-    return 0; 
+TEST_CASE("moving one tasks state dont impact another instace"){
+    Task t1; 
+    Task t2; 
+    t1.start(); 
+    CHECK(t1.getState() != t2.getState());
+    CHECK(t2.getState()->toString() == "Pending"); 
+
+}
+
+TEST_CASE(" unknow state name is rejected"){
+    CHECK_THROWS_AS(TaskStateFactory::get("NotARealState"), WorkflowError); 
 }
