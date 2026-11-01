@@ -6,7 +6,7 @@
 #include <vector>
 #include <nlohmann/json.hpp>
 
-// Forward declarations
+
 class TaskState;
 class TaskMemento;
 struct WorkItemView;
@@ -16,8 +16,19 @@ struct WorkItemView;
  */
 class Task : public WorkflowComponent {
 private:
-    static int counter;     ///< Static counter used for generating sequential task IDs.
-    TaskState* currentState; ///< Non-owning raw pointer to the current lifecycle state flyweight.
+    static int counter;     
+    TaskState* currentState; 
+    bool failedByPrerequisite;
+
+    /**
+     * @brief Checks whether any prerequisite task has currently failed.
+     */
+    bool hasFailedPrerequisite() const;
+
+    /**
+     * @brief Creates whether the task is Pending, InProgress or Blocked(it can still be failed by a prerequisite).
+     */
+    bool isActive() const;
 
 public:
     /**
@@ -111,7 +122,7 @@ public:
     void collectWork(std::vector<WorkItemView>& out) const override;
 
     /**
-     * @brief Serialises the task into a structured JSON representation.
+     * @brief Converts the task into a structured JSON representation.
      */
     nlohmann::json toJson() const override;
 
@@ -121,4 +132,4 @@ public:
     WorkflowComponent* clone() const override;
 };
 
-#endif // TIVIDY_TASK_H
+#endif 

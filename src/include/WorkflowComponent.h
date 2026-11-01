@@ -167,17 +167,17 @@ protected:
      */
     virtual void unlinkAll();
 
-    std::string id;                                   ///< Unique string identifier for the component.
-    std::string name;                                 ///< Name of the workflow component.
-    std::string description;                          ///< Description of the workflow component.
-    std::string executorId;                             ///< Assigned executor participant object.
-    DateTime deadline;                                ///< Deadline representation object.
-    std::map<std::string, std::string> customFields;  ///< Custom metadata key-value pairs.
-    std::vector<Comment> comments;                    ///< Collection of comments attached.
-    std::vector<Participant> participants;            ///< Collection of participants involved.
-    std::vector<WorkflowComponent*> dependencies;     ///< Prerequisite dependency components.
-    std::vector<WorkflowComponent*> dependents;       ///< Successor dependent components.
-    bool ready = true;                                       ///< Flag indicating execution readiness.
+    std::string id;                                  
+    std::string name;                                 
+    std::string description;                          
+    std::string executorId;                            
+    DateTime deadline;                                
+    std::map<std::string, std::string> customFields; 
+    std::vector<Comment> comments;                    
+    std::vector<Participant> participants;            
+    std::vector<WorkflowComponent*> dependencies;     
+    std::vector<WorkflowComponent*> dependents;       
+    bool ready = true;       
 
     friend class TaskBuilder;
     friend class ProjectBuilder;
