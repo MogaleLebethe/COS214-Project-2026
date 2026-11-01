@@ -15,6 +15,30 @@
             "cStandard": "c11",
             "cppStandard": "c++11",
             "intelliSenseMode": "macos-clang-arm64"
+        },
+        {
+            "name": "WSL",
+            "includePath": [
+                "${workspaceFolder}/src/include",
+                "${workspaceFolder}/tests/third_party"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/g++",
+            "cStandard": "c11",
+            "cppStandard": "c++11",
+            "intelliSenseMode": "linux-gcc-x64"
+        },
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/src/include",
+                "${workspaceFolder}/tests/third_party"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/g++",
+            "cStandard": "c11",
+            "cppStandard": "c++11",
+            "intelliSenseMode": "linux-gcc-x64"
         }
     ],
     "version": 4
