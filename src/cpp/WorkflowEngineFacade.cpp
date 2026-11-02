@@ -9,6 +9,7 @@
 #include "ReportService.h"
 #include "Task.h"
 #include "Command.h"
+#include "RemoveWorkItemCommand.h"
 #include "DecisionTask.h"
 #include "RouterRegistry.h"
 #include "RemoveWorkItemCommand.h"
