@@ -1,62 +1,99 @@
-# COS214-Project-2026
-## Branch Workflow
+# COS214 Project 2026 - TIVIDY Workflow Board
 
-**`main`** is locked. Do NOT push or merge into it. It only receives the final, finished project from `dev`.
+TIVIDY is a workflow-management application that exposes a browser-based board for creating and tracking projects, tasks, dependencies, and workflow progress. The project combines a C++ workflow engine with a web front-end served by the application runtime.
 
-**`dev`** is the integration branch. All work is merged here first.
+## Project overview
 
-### Getting the `dev` branch
+The project is organised around these areas:
 
-New clone:
+- `app/` – application entry point for the embedded web server
+- `gui/` – GUI and API controller code
+- `src/` – workflow engine and domain logic
+- `web/` – browser UI files (HTML, CSS, JavaScript)
+- `tests/` – automated tests for the workflow engine and commands
+- `docs/` – project reference material and specification documents
+
+## Requirements
+
+To run the project you need:
+
+- Docker 24+ (recommended option)
+- A modern browser such as Chrome, Edge, Firefox, or Safari
+- Optional native development tools: build-essential, make, g++, and the C++ libraries required by the project
+
+## Quick start with Docker
+
+From the repository root, build the container image:
+
 ```bash
-git clone https://github.com/MogaleLebethe/COS214-Practical-6.git
-cd COS214-Practical-6
-git checkout dev
+docker build -t tividy-gui .
 ```
 
-Already cloned:
+Start the application:
+
 ```bash
-git fetch origin
-git checkout dev
-git pull
+docker run -d --name tividy-gui -p 8080:8080 tividy-gui
 ```
 
-You can also pick `dev` from the branch dropdown on GitHub.
+Once the container is running, open the browser at:
 
-### Adding your work
-
-1. Start from the latest `dev`:
-```bash
-   git checkout dev
-   git pull
-   git checkout -b your-branch-name
+```text
+http://localhost:8080/
 ```
-2. Work, then commit and push:
+
+Useful Docker commands:
+
 ```bash
-   git add .
-   git commit -m "Describe what you changed"
-   git push -u origin your-branch-name
+docker ps
+
+docker logs tividy-gui
+
+docker stop tividy-gui
+
+docker rm -f tividy-gui
 ```
-3. On GitHub, open a Pull Request with **base: `dev`** (not `main`).
-4. After review, merge it into `dev`.
 
-### Final release
-When the project is complete and tested, one Pull Request merges `dev` into `main`.
-=======
-# COS214-Project-2026
->>>>>>> 8efbc07 (Rename project from Practical-6 to Project-2026)
+## Running the application locally
 
+If you have already built the project binary, run it directly from the repository root:
 
----------------------------------------
-Docker:
-   Build image:
-      docker build -t tividy-gui .
+```bash
+./tividy_gui --port 8080 --web ./web
+```
 
-   Run container:
-      docker run -d --name tividy-gui -p 8080:8080 tividy-gui
+This starts the server and serves the web interface from the `web/` directory. The browser UI will then be available at `http://localhost:8080/`.
 
-   Check running containers: 
-      docker ps
+If the binary has not been built yet, build it using the project’s build process before running the command above.
 
-   Inspect Logs:
-      docker logs tividy-gui
+## Development notes
+
+- The server exposes a JSON API under `/api/*` and serves the browser UI through the `web/` directory.
+- The workflow engine manages projects, tasks, dependency rules, action execution, imports/exports, and undo/redo support.
+- The web app communicates with the backend through the API to update the board and project state.
+
+## Troubleshooting
+
+- If the app does not start, check the container logs:
+
+```bash
+docker logs tividy-gui
+```
+
+- If the port is already in use, change the exposed port in the run command, for example:
+
+```bash
+docker run -d --name tividy-gui -p 8081:8080 tividy-gui
+```
+
+- If you are running locally, confirm that the `web/` directory exists and that the built binary is present in the repository root.
+
+## Example workflow
+
+1. Start the TIVIDY server.
+2. Open the app in a browser.
+3. Create or import a project.
+4. Add tasks and dependencies.
+5. Execute workflow actions and monitor progress.
+6. Export or clone the project as needed.
+
+This should give you a complete starting point for working with the TIVIDY workflow board.
