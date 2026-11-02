@@ -1,17 +1,3 @@
-/**
- * @file main.cpp
- * @brief Demo of the workflow engine with two scenarios: a hospital ER admission and an ad agency campaign.
- *
- * Usage:
- *   ./demo            interactive menu (default)
- *   ./demo hospital   scripted walkthrough of the hospital scenario
- *   ./demo agency     scripted walkthrough of the ad agency scenario
- *   ./demo all        both scripted walkthroughs
- *
- * Patterns on show: Facade, Builder/Director (templates), Composite (Project/Task), Observer (dependencies),
- * State (task lifecycle), Command (undo/redo), Memento (task edits), Strategy (decision routing),
- * Prototype (clone project), Registry (actions, routers, definitions).
- */
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -42,7 +28,6 @@ using nlohmann::json;
 
 namespace {
 
-/** Owns every subsystem the facade needs. Member order matters: it is the construction (and reverse destruction) order. */
 struct Engine {
     RouterRegistry routers;
     ProjectRegistry registry;
@@ -55,8 +40,6 @@ struct Engine {
     Engine() : factory(&routers), facade(registry, factory, reports, definitions, actions, routers) {}
 };
 
-// ---------- printing helpers ----------
-
 void banner(const std::string& title) {
     std::cout << "\n==============================================================\n"
               << "  " << title << "\n"
@@ -67,7 +50,6 @@ void step(const std::string& text) {
     std::cout << "\n--- " << text << "\n";
 }
 
-/** Runs fn and reports (instead of crashing on) the workflow errors we expect to hit on purpose. */
 bool attempt(const std::string& what, const std::function<void()>& fn) {
     try {
         fn();
@@ -88,7 +70,6 @@ const json* findItem(const json& project, const std::string& id) {
     return nullptr;
 }
 
-/** One line per task; '>' marks the tasks that can be worked on right now. */
 void board(Engine& e, const std::string& pid) {
     json project = e.facade.exportProjectToJson(pid);
     std::vector<WorkItemView> available = e.facade.listAvailableWork(pid);
@@ -131,14 +112,12 @@ void history(Engine& e, const std::string& pid, std::size_t last) {
     }
 }
 
-/** Runs a lifecycle action (start/complete/block/...) through the Command layer and prints the new state. */
 void act(Engine& e, const std::string& pid, const std::string& tid, const std::string& action) {
     e.facade.performAction(pid, tid, action);
     std::cout << "  " << std::left << std::setw(9) << action << tid << "  ->  "
               << e.registry.findTask(pid, tid).getState()->toString() << "\n";
 }
 
-/** Decision tasks are not buildable from the template's branch data, so branch wiring is done here. */
 void branch(Engine& e, const std::string& pid, const std::string& decisionId,
             const std::string& label, const std::string& targetId) {
     DecisionTask* d = dynamic_cast<DecisionTask*>(&e.registry.findComponent(pid, decisionId));
@@ -181,8 +160,6 @@ json deadline(int y, int m, int d, int h, int min) {
     return j;
 }
 
-// ---------- scenario setup (shared by the scripted walkthroughs and the interactive menu) ----------
-
 json adCampaignTemplate() {
     json lerato = person("AM-1", "Lerato Mokoena", "Account Manager");
     json sipho = person("CD-1", "Sipho Dlamini", "Creative Director");
@@ -209,12 +186,7 @@ json adCampaignTemplate() {
     return tpl;
 }
 
-/**
- * Registers the routers and the ad campaign definition. Called once at startup: projects borrow their router,
- * so a router must never be replaced while a project that uses it is alive.
- */
 void registerDefaults(Engine& e) {
-    // Strategy: each router reads one field of the decision context to pick the branch.
     e.routers.add("severity", new FieldValueRoutingStrategy("severity"));
     e.routers.add("clientFeedback", new FieldValueRoutingStrategy("verdict"));
 
@@ -223,7 +195,6 @@ void registerDefaults(Engine& e) {
                                          adCampaignTemplate()));
 }
 
-/** Builds the ER admission workflow from a JSON template and wires its dependencies and branches. */
 std::string setupHospital(Engine& e, const std::string& projectName) {
     WorkflowEngineFacade& f = e.facade;
 
@@ -250,7 +221,6 @@ std::string setupHospital(Engine& e, const std::string& projectName) {
 
     std::string pid = f.createFromTemplate(tpl);
 
-    // Observer: assess after triage, decide after assess, billing after whichever care pathway is taken.
     f.addDependency(pid, "H-ASSESS", "H-TRIAGE");
     f.addDependency(pid, "H-DECIDE", "H-ASSESS");
     branch(e, pid, "H-DECIDE", "critical", "H-SURGERY");
@@ -262,12 +232,10 @@ std::string setupHospital(Engine& e, const std::string& projectName) {
     return pid;
 }
 
-/** Starts an instance of the registered 'ad-campaign' definition and wires its dependencies and branches. */
 std::string setupAgency(Engine& e, const std::string& instanceName) {
     WorkflowEngineFacade& f = e.facade;
     std::string pid = f.startInstance("ad-campaign", instanceName);
 
-    // Copy and design run in parallel after the concept; the client review waits for both.
     f.addDependency(pid, "A-CONCEPT", "A-BRIEF");
     f.addDependency(pid, "A-COPY", "A-CONCEPT");
     f.addDependency(pid, "A-DESIGN", "A-CONCEPT");
@@ -279,8 +247,6 @@ std::string setupAgency(Engine& e, const std::string& instanceName) {
     f.addDependency(pid, "A-LAUNCH", "A-PRODUCE");
     return pid;
 }
-
-// ---------- scripted scenario 1: hospital ----------
 
 void hospital(Engine& e) {
     banner("SCENARIO 1: HOSPITAL - Emergency room admission");
@@ -354,8 +320,6 @@ void hospital(Engine& e) {
     board(e, next);
 }
 
-// ---------- scripted scenario 2: ad agency ----------
-
 void adAgency(Engine& e) {
     banner("SCENARIO 2: AD AGENCY - Campaign for a client");
     WorkflowEngineFacade& f = e.facade;
@@ -416,12 +380,8 @@ void adAgency(Engine& e) {
     }
 }
 
-// ---------- interactive menu ----------
-
-/** Thrown when stdin is closed (Ctrl+D or end of piped input) so the menu can exit cleanly. */
 struct InputClosed {};
 
-/** The engine plus the project the user is currently working on. */
 struct Session {
     Engine& e;
     std::string pid;
@@ -437,7 +397,6 @@ std::string trim(const std::string& s) {
     return s.substr(a, b - a + 1);
 }
 
-/** Prompts and reads one line; an empty answer returns the fallback. */
 std::string ask(const std::string& prompt, const std::string& fallback = "") {
     std::cout << prompt;
     if (!fallback.empty()) {
@@ -452,7 +411,6 @@ std::string ask(const std::string& prompt, const std::string& fallback = "") {
     return line.empty() ? fallback : line;
 }
 
-/** Reads a whole number in [lo, hi]; returns -1 when the answer is blank or invalid. */
 int askInt(const std::string& prompt, int lo, int hi) {
     std::string s = ask(prompt);
     if (s.empty()) {
@@ -467,7 +425,6 @@ int askInt(const std::string& prompt, int lo, int hi) {
     return static_cast<int>(v);
 }
 
-/** Lists the tasks of the active project and lets the user pick one. Returns "" when cancelled. */
 std::string pickTask(Session& s, const std::string& title, const std::string& onlyType = "") {
     json project = s.e.facade.exportProjectToJson(s.pid);
     const json& items = project["workItems"];
@@ -499,7 +456,6 @@ bool needProject(const Session& s) {
     return true;
 }
 
-/** Parses "YYYY-MM-DD" or "YYYY-MM-DD HH:MM" into the deadline payload expected by editTask. */
 bool parseDeadline(const std::string& text, json& out) {
     int y = 0, m = 0, d = 0, h = 0, mi = 0;
     int got = std::sscanf(text.c_str(), "%d-%d-%d %d:%d", &y, &m, &d, &h, &mi);
@@ -619,7 +575,6 @@ void menuDecide(Session& s) {
     if (tid.empty()) {
         return;
     }
-    // a decision can only be made once the task is In Progress; say so up front instead of failing after the prompts
     std::string state = s.e.registry.findTask(s.pid, tid).getState()->toString();
     if (state != "In Progress") {
         std::cout << "  " << tid << " is " << state << ". Start it first (option 10, action 'start'), then decide.\n";
@@ -646,11 +601,9 @@ void menuDecide(Session& s) {
         answer = labels[static_cast<std::size_t>(idx - 1)];
     }
 
-    // Each scenario's router reads a different context field ("severity" or "verdict"); supply both.
     json context;
     context["severity"] = answer;
     context["verdict"] = answer;
-    // decide first, print after - printing "Chosen branch:" in the same << chain showed it even when decide() threw
     std::string chosen = s.e.facade.decide(s.pid, tid, context);
     std::cout << "  Chosen branch: " << chosen << "\n";
     board(s.e, s.pid);
@@ -766,7 +719,6 @@ void menuEdit(Session& s) {
     board(s.e, s.pid);
 }
 
-/** Runs the menu until the user quits or input ends. Workflow errors are shown and the menu carries on. */
 void interactive(Engine& e) {
     banner("WORKFLOW ENGINE - interactive mode");
     std::cout << "  Load a scenario (1 or 2), then use the menu to run the workflow yourself.\n"
@@ -811,7 +763,7 @@ void interactive(Engine& e) {
     }
 }
 
-} // namespace
+}
 
 int main(int argc, char** argv) {
     std::string mode = argc > 1 ? argv[1] : "menu";
