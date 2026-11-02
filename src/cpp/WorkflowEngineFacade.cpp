@@ -11,6 +11,7 @@
 #include "Command.h"
 #include "DecisionTask.h"
 #include "RouterRegistry.h"
+#include "RemoveWorkItemCommand.h"
 #include <cctype>
 #include <cstdio>
 #include <map>
