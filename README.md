@@ -45,3 +45,18 @@ When the project is complete and tested, one Pull Request merges `dev` into `mai
 =======
 # COS214-Project-2026
 >>>>>>> 8efbc07 (Rename project from Practical-6 to Project-2026)
+
+
+---------------------------------------
+Docker:
+   Build image:
+      docker build -t tividy-gui .
+
+   Run container:
+      docker run -d --name tividy-gui -p 8080:8080 tividy-gui
+
+   Check running containers: 
+      docker ps
+
+   Inspect Logs:
+      docker logs tividy-gui
