@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
     std::cout << "TIVIDY board running at http://localhost:" << port
               << "  (Ctrl+C to stop)" << std::endl;
 
-    if (!server.listen("000.0.0.0", port)) {
+    if (!server.listen("0.0.0.0", port)) {
         std::cerr << "Could not listen on port " << port
                   << " (in use?). Try --port 8081\n";
         return 1;
