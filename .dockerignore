@@ -1,0 +1,13 @@
+.git
+.github
+build
+cmake-build-debug
+cmake-build-release
+.vscode
+.idea
+
+*.o
+*.exe
+
+gui_tests
+tividy_gui
